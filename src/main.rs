@@ -65,7 +65,6 @@ mod bug_report;
 mod clipboard;
 mod cmdbar;
 mod components;
-mod rusted_git;
 mod input;
 mod keys;
 mod notify_mutex;
@@ -73,6 +72,7 @@ mod options;
 mod popup_stack;
 mod popups;
 mod queue;
+mod rusted_git;
 mod spinner;
 mod string_utils;
 mod strings;
@@ -90,16 +90,17 @@ use asyncgit::{sync::RepoPath, AsyncGitNotification};
 use backtrace::Backtrace;
 use crossbeam_channel::{Receiver, Select};
 use crossterm::{
+	event::{DisableMouseCapture, EnableMouseCapture},
 	terminal::{
 		disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
 		LeaveAlternateScreen,
 	},
 	ExecutableCommand,
 };
-use rusted_git::RustedGit;
 use input::InputEvent;
 use keys::KeyConfig;
 use ratatui::backend::CrosstermBackend;
+use rusted_git::RustedGit;
 use scopeguard::defer;
 use std::{
 	io::{self, Stdout},
@@ -228,7 +229,8 @@ fn run_app(
 	updater: Updater,
 	terminal: &mut Terminal,
 ) -> Result<QuitState, anyhow::Error> {
-	let mut rusted_git = RustedGit::new(cliargs, theme, key_config, updater)?;
+	let mut rusted_git =
+		RustedGit::new(cliargs, theme, key_config, updater)?;
 
 	log::trace!("app start: {} ms", app_start.elapsed().as_millis());
 
@@ -237,13 +239,17 @@ fn run_app(
 
 fn setup_terminal() -> Result<()> {
 	enable_raw_mode()?;
-	io::stdout().execute(EnterAlternateScreen)?;
+	io::stdout()
+		.execute(EnterAlternateScreen)?
+		.execute(EnableMouseCapture)?;
 	Ok(())
 }
 
 fn shutdown_terminal() {
-	let leave_screen =
-		io::stdout().execute(LeaveAlternateScreen).map(|_f| ());
+	let leave_screen = io::stdout()
+		.execute(DisableMouseCapture)
+		.and_then(|stdout| stdout.execute(LeaveAlternateScreen))
+		.map(|_f| ());
 
 	if let Err(e) = leave_screen {
 		log::error!("leave_screen failed:\n{e}");

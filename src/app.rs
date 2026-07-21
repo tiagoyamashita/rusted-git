@@ -46,7 +46,9 @@ use asyncgit::{
 	AsyncGitNotification, PushType,
 };
 use crossbeam_channel::Sender;
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{
+	Event, KeyEvent, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::{
 	layout::{
 		Alignment, Constraint, Direction, Layout, Margin, Rect,
@@ -61,6 +63,10 @@ use std::{
 	rc::Rc,
 };
 use unicode_width::UnicodeWidthStr;
+
+const TOP_BAR_TEXT_ROW: u16 = 0;
+const TOP_BAR_HORIZONTAL_MARGIN: u16 = 1;
+const TAB_HORIZONTAL_PADDING: u16 = 1;
 
 #[derive(Clone)]
 pub enum QuitState {
@@ -380,6 +386,11 @@ impl App {
 				};
 
 				flags.insert(new_flags);
+			} else if let Event::Mouse(mouse) = &ev {
+				if let Some(tab) = self.clicked_tab(mouse) {
+					self.set_tab(tab)?;
+					flags.insert(NeedsUpdate::COMMANDS);
+				}
 			}
 
 			self.process_queue(flags)?;
@@ -1186,6 +1197,32 @@ impl App {
 	}
 
 	//TODO: make this dynamic
+	fn tab_labels(&self) -> [String; 7] {
+		[
+			strings::tab_status(&self.key_config),
+			strings::tab_log(&self.key_config),
+			strings::tab_files(&self.key_config),
+			strings::tab_stashing(&self.key_config),
+			strings::tab_stashes(&self.key_config),
+			strings::tab_graph(&self.key_config),
+			strings::tab_create_pr(&self.key_config),
+		]
+	}
+
+	fn clicked_tab(&self, mouse: &MouseEvent) -> Option<usize> {
+		if mouse.kind != MouseEventKind::Down(MouseButton::Left)
+			|| mouse.row != TOP_BAR_TEXT_ROW
+		{
+			return None;
+		}
+
+		tab_index_at_column(
+			&self.tab_labels(),
+			strings::tab_divider(&self.key_config).width(),
+			mouse.column,
+		)
+	}
+
 	fn draw_top_bar(&self, f: &mut Frame, r: Rect) {
 		const DIVIDER_PAD_SPACES: usize = 2;
 		const SIDE_PADS: usize = 2;
@@ -1196,15 +1233,7 @@ impl App {
 			horizontal: 1,
 		});
 
-		let tab_labels = [
-			Span::raw(strings::tab_status(&self.key_config)),
-			Span::raw(strings::tab_log(&self.key_config)),
-			Span::raw(strings::tab_files(&self.key_config)),
-			Span::raw(strings::tab_stashing(&self.key_config)),
-			Span::raw(strings::tab_stashes(&self.key_config)),
-			Span::raw(strings::tab_graph(&self.key_config)),
-			Span::raw(strings::tab_create_pr(&self.key_config)),
-		];
+		let tab_labels = self.tab_labels().map(Span::raw);
 		let divider = strings::tab_divider(&self.key_config);
 
 		// heuristic, since tui doesn't provide a way to know
@@ -1256,5 +1285,43 @@ impl App {
 			.alignment(Alignment::Right),
 			text_area,
 		);
+	}
+}
+
+fn tab_index_at_column(
+	labels: &[String],
+	divider_width: usize,
+	column: u16,
+) -> Option<usize> {
+	let mut label_start = usize::from(
+		TOP_BAR_HORIZONTAL_MARGIN + TAB_HORIZONTAL_PADDING,
+	);
+	let column = usize::from(column);
+
+	for (index, label) in labels.iter().enumerate() {
+		let label_end = label_start + label.width();
+		if (label_start..label_end).contains(&column) {
+			return Some(index);
+		}
+		label_start = label_end
+			+ usize::from(TAB_HORIZONTAL_PADDING * 2)
+			+ divider_width;
+	}
+
+	None
+}
+
+#[cfg(test)]
+mod tests {
+	use super::tab_index_at_column;
+
+	#[test]
+	fn selects_tabs_only_when_clicking_their_labels() {
+		let labels = vec!["Status".to_string(), "Log".to_string()];
+
+		assert_eq!(tab_index_at_column(&labels, 3, 2), Some(0));
+		assert_eq!(tab_index_at_column(&labels, 3, 8), None);
+		assert_eq!(tab_index_at_column(&labels, 3, 13), Some(1));
+		assert_eq!(tab_index_at_column(&labels, 3, 16), None);
 	}
 }
