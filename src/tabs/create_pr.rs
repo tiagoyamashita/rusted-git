@@ -1,11 +1,13 @@
 use crate::{
 	app::Environment,
 	components::{
-		visibility_blocking, CommandBlocking, CommandInfo, Component,
+		visibility_blocking, CommandBlocking, CommandInfo,
+		CommitDetailsComponent, Component, DiffComponent,
 		DrawableComponent, EventState, InputType, ScrollType,
 		TextInputComponent, VerticalScroll,
 	},
 	keys::{key_match, SharedKeyConfig},
+	options::SharedOptions,
 	queue::{InternalEvent, Queue},
 	strings,
 	ui::style::SharedTheme,
@@ -13,8 +15,12 @@ use crate::{
 use anyhow::Result;
 use asyncgit::{
 	asyncjob::AsyncSingleJob,
-	sync::{self, get_branches_info, BranchInfo, RepoPathRef},
-	AsyncCreatePrJob, AsyncGitNotification, CreatePrRequest,
+	sync::{
+		self, commit_files::OldNew, get_branches_info, BranchInfo,
+		CommitId, RepoPathRef,
+	},
+	AsyncCreatePrJob, AsyncDiff, AsyncGitNotification,
+	CommitFilesParams, CreatePrRequest, DiffParams, DiffType,
 };
 use crossterm::event::Event;
 use ratatui::{
@@ -29,6 +35,8 @@ enum Focus {
 	Branches,
 	Title,
 	Body,
+	Files,
+	Diff,
 }
 
 /// Tab to create a GitHub pull request from a local branch via `gh`.
@@ -37,6 +45,7 @@ pub struct CreatePrTab {
 	queue: Queue,
 	theme: SharedTheme,
 	key_config: SharedKeyConfig,
+	options: SharedOptions,
 	visible: bool,
 	branches: Vec<BranchInfo>,
 	selection: usize,
@@ -46,6 +55,9 @@ pub struct CreatePrTab {
 	head_branch: String,
 	title: TextInputComponent,
 	body: TextInputComponent,
+	details: CommitDetailsComponent,
+	diff: DiffComponent,
+	git_diff: AsyncDiff,
 	job: AsyncSingleJob<AsyncCreatePrJob>,
 	status: String,
 	pending: bool,
@@ -77,6 +89,7 @@ impl CreatePrTab {
 			queue: env.queue.clone(),
 			theme: env.theme.clone(),
 			key_config: env.key_config.clone(),
+			options: env.options.clone(),
 			visible: false,
 			branches: Vec::new(),
 			selection: 0,
@@ -86,6 +99,12 @@ impl CreatePrTab {
 			head_branch: String::new(),
 			title,
 			body,
+			details: CommitDetailsComponent::new(env),
+			diff: DiffComponent::new(env, true),
+			git_diff: AsyncDiff::new(
+				env.repo.borrow().clone(),
+				&env.sender_git,
+			),
 			job: AsyncSingleJob::new(env.sender_git.clone()),
 			status: String::from(
 				"1) pick branches  2) Tab to PR Title  3) Tab to Description  4) c to create",
@@ -102,8 +121,7 @@ impl CreatePrTab {
 
 		self.branches = get_branches_info(&self.repo.borrow(), true)?;
 		if self.selection >= self.branches.len() {
-			self.selection =
-				self.branches.len().saturating_sub(1);
+			self.selection = self.branches.len().saturating_sub(1);
 		}
 
 		if self.base_branch.is_empty() {
@@ -124,6 +142,7 @@ impl CreatePrTab {
 			}
 		}
 
+		self.refresh_compare()?;
 		self.apply_focus();
 		Ok(())
 	}
@@ -133,48 +152,137 @@ impl CreatePrTab {
 		&mut self,
 		ev: AsyncGitNotification,
 	) -> Result<()> {
-		if !self.visible || ev != AsyncGitNotification::CreatePr {
+		if !self.visible {
 			return Ok(());
 		}
 
-		self.pending = false;
-		if let Some(job) = self.job.take_last() {
-			match job.result() {
-				Some(Ok(msg)) => {
-					self.status = format!("Created: {msg}");
-					self.queue.push(InternalEvent::ShowInfoMsg(msg));
-				}
-				Some(Err(e)) => {
-					let msg = format!("create PR failed:\n{e}");
-					self.status = msg.clone();
-					self.queue
-						.push(InternalEvent::ShowErrorMsg(msg));
-				}
-				None => {
-					self.status =
-						String::from("create PR finished with no result");
+		match ev {
+			AsyncGitNotification::CreatePr => {
+				self.pending = false;
+				if let Some(job) = self.job.take_last() {
+					match job.result() {
+						Some(Ok(msg)) => {
+							self.status = format!("Created: {msg}");
+							self.queue.push(
+								InternalEvent::ShowInfoMsg(msg),
+							);
+						}
+						Some(Err(e)) => {
+							let msg =
+								format!("create PR failed:\n{e}");
+							self.status = msg.clone();
+							self.queue.push(
+								InternalEvent::ShowErrorMsg(msg),
+							);
+						}
+						None => {
+							self.status = String::from(
+								"create PR finished with no result",
+							);
+						}
+					}
 				}
 			}
+			AsyncGitNotification::CommitFiles => {
+				self.refresh_compare()?;
+			}
+			AsyncGitNotification::Diff => {
+				self.update_diff()?;
+			}
+			_ => {}
 		}
 
 		Ok(())
 	}
 
-	fn apply_focus(&mut self) {
-		match self.focus {
-			Focus::Branches => {
-				self.title.enabled(false);
-				self.body.enabled(false);
+	///
+	pub fn any_work_pending(&self) -> bool {
+		self.git_diff.is_pending()
+			|| self.details.any_work_pending()
+			|| self.pending
+	}
+
+	fn has_compare(&self) -> bool {
+		self.compare_ids().is_some()
+	}
+
+	fn tip_of(&self, branch: &str) -> Option<CommitId> {
+		self.branches
+			.iter()
+			.find(|b| b.name == branch)
+			.map(|b| b.top_commit)
+	}
+
+	fn compare_ids(&self) -> Option<OldNew<CommitId>> {
+		if self.base_branch.is_empty()
+			|| self.head_branch.is_empty()
+			|| self.base_branch == self.head_branch
+		{
+			return None;
+		}
+		Some(OldNew {
+			old: self.tip_of(&self.base_branch)?,
+			new: self.tip_of(&self.head_branch)?,
+		})
+	}
+
+	fn refresh_compare(&mut self) -> Result<()> {
+		if let Some(ids) = self.compare_ids() {
+			if !self.details.is_visible() {
+				self.details.show()?;
 			}
-			Focus::Title => {
-				self.title.enabled(true);
-				self.body.enabled(false);
-			}
-			Focus::Body => {
-				self.title.enabled(false);
-				self.body.enabled(true);
+			self.details.set_commits(
+				Some(CommitFilesParams::from(ids)),
+				None,
+			)?;
+			self.update_diff()?;
+		} else {
+			self.details.set_commits(None, None)?;
+			self.details.hide();
+			self.diff.clear(false);
+			if matches!(self.focus, Focus::Files | Focus::Diff) {
+				self.focus = Focus::Branches;
 			}
 		}
+		Ok(())
+	}
+
+	fn update_diff(&mut self) -> Result<()> {
+		if let Some(ids) = self.compare_ids() {
+			if let Some(f) = self.details.files().selection_file() {
+				let diff_params = DiffParams {
+					path: f.path.clone(),
+					diff_type: DiffType::Commits(ids),
+					options: self.options.borrow().diff_options(),
+				};
+
+				if let Some((params, last)) = self.git_diff.last()? {
+					if params == diff_params {
+						self.diff.update(f.path, false, last);
+						return Ok(());
+					}
+				}
+
+				self.git_diff.request(diff_params)?;
+				self.diff.clear(true);
+				return Ok(());
+			}
+		}
+
+		self.diff.clear(false);
+		Ok(())
+	}
+
+	fn apply_focus(&mut self) {
+		let title = self.focus == Focus::Title;
+		let body = self.focus == Focus::Body;
+		let files = self.focus == Focus::Files;
+		let diff = self.focus == Focus::Diff;
+
+		self.title.enabled(title);
+		self.body.enabled(body);
+		self.details.focus(files);
+		self.diff.focus(diff);
 	}
 
 	fn selected_branch(&self) -> Option<&BranchInfo> {
@@ -204,10 +312,18 @@ impl CreatePrTab {
 			if self.title.get_text().trim().is_empty() {
 				self.title.set_text(format!("Merge {name}"));
 			}
-			self.status = format!(
-				"Head set to `{name}`. Edit title, then Esc back and Tab for next tab."
-			);
+			self.status = if self.has_compare() {
+				format!(
+					"Head `{name}` vs base `{}` — diff on the right. Tab edits title.",
+					self.base_branch
+				)
+			} else {
+				format!(
+					"Head set to `{name}`. Edit title, then Esc back and Tab for next tab."
+				)
+			};
 			self.focus = Focus::Title;
+			let _ = self.refresh_compare();
 			self.apply_focus();
 		}
 	}
@@ -217,24 +333,49 @@ impl CreatePrTab {
 			self.selected_branch().map(|b| b.name.clone())
 		{
 			self.base_branch = name.clone();
-			self.status = format!(
-				"Base set to `{name}`. Enter sets head; Right edits title."
-			);
+			self.status = if self.has_compare() {
+				format!(
+					"Base `{name}` vs head `{}` — diff on the right.",
+					self.head_branch
+				)
+			} else {
+				format!(
+					"Base set to `{name}`. Enter sets head; Right edits title."
+				)
+			};
+			let _ = self.refresh_compare();
 		}
 	}
 
 	fn cycle_focus(&mut self, reverse: bool) {
+		let has_compare = self.has_compare();
 		self.focus = if reverse {
 			match self.focus {
-				Focus::Branches => Focus::Body,
+				Focus::Branches => {
+					if has_compare {
+						Focus::Diff
+					} else {
+						Focus::Body
+					}
+				}
 				Focus::Title => Focus::Branches,
 				Focus::Body => Focus::Title,
+				Focus::Files => Focus::Body,
+				Focus::Diff => Focus::Files,
 			}
 		} else {
 			match self.focus {
 				Focus::Branches => Focus::Title,
 				Focus::Title => Focus::Body,
-				Focus::Body => Focus::Branches,
+				Focus::Body => {
+					if has_compare {
+						Focus::Files
+					} else {
+						Focus::Branches
+					}
+				}
+				Focus::Files => Focus::Diff,
+				Focus::Diff => Focus::Branches,
 			}
 		};
 		self.apply_focus();
@@ -258,9 +399,8 @@ impl CreatePrTab {
 		}
 		if self.head_branch.is_empty() || self.base_branch.is_empty()
 		{
-			self.status = String::from(
-				"base and head branches are required",
-			);
+			self.status =
+				String::from("base and head branches are required");
 			return;
 		}
 
@@ -332,7 +472,8 @@ impl CreatePrTab {
 					.title(title)
 					.borders(Borders::ALL)
 					.border_style(
-						self.theme.block(self.focus == Focus::Branches),
+						self.theme
+							.block(self.focus == Focus::Branches),
 					),
 			),
 			area,
@@ -371,8 +512,13 @@ impl CreatePrTab {
 		);
 		f.render_widget(summary, chunks[0]);
 
+		let help_text = if self.has_compare() {
+			"Enter=head  |  b=base  |  Tab=next  |  Right→files/diff  |  Esc=back  |  c=create"
+		} else {
+			"Enter=set head  |  b=set base  |  Right/Tab=edit  |  Esc=branches  |  Tab(on branches)=next tab  |  c=create"
+		};
 		let help = Paragraph::new(Line::from(Span::styled(
-			"Enter=set head  |  b=set base  |  Right/Tab=edit  |  Esc=branches  |  Tab(on branches)=next tab  |  c=create",
+			help_text,
 			self.theme.text(false, false),
 		)));
 		f.render_widget(help, chunks[1]);
@@ -401,6 +547,28 @@ impl CreatePrTab {
 		);
 		f.render_widget(status, chunks[4]);
 
+		Ok(())
+	}
+
+	fn draw_compare(&self, f: &mut Frame, area: Rect) -> Result<()> {
+		let percentages = if self.diff.focused() {
+			(0, 100)
+		} else if self.details.focused() {
+			(55, 45)
+		} else {
+			(45, 55)
+		};
+
+		let chunks = Layout::default()
+			.direction(Direction::Horizontal)
+			.constraints([
+				Constraint::Percentage(percentages.0),
+				Constraint::Percentage(percentages.1),
+			])
+			.split(area);
+
+		self.details.draw(f, chunks[0])?;
+		self.diff.draw(f, chunks[1])?;
 		Ok(())
 	}
 
@@ -440,24 +608,36 @@ fn default_base_branch(branches: &[BranchInfo]) -> String {
 			return name.to_string();
 		}
 	}
-	branches
-		.first()
-		.map(|b| b.name.clone())
-		.unwrap_or_default()
+	branches.first().map(|b| b.name.clone()).unwrap_or_default()
 }
 
 impl DrawableComponent for CreatePrTab {
 	fn draw(&self, f: &mut Frame, rect: Rect) -> Result<()> {
-		let chunks = Layout::default()
-			.direction(Direction::Horizontal)
-			.constraints([
-				Constraint::Percentage(35),
-				Constraint::Percentage(65),
-			])
-			.split(rect);
+		if self.has_compare() {
+			let chunks = Layout::default()
+				.direction(Direction::Horizontal)
+				.constraints([
+					Constraint::Percentage(22),
+					Constraint::Percentage(30),
+					Constraint::Percentage(48),
+				])
+				.split(rect);
 
-		self.draw_branches(f, chunks[0]);
-		self.draw_form(f, chunks[1])?;
+			self.draw_branches(f, chunks[0]);
+			self.draw_form(f, chunks[1])?;
+			self.draw_compare(f, chunks[2])?;
+		} else {
+			let chunks = Layout::default()
+				.direction(Direction::Horizontal)
+				.constraints([
+					Constraint::Percentage(35),
+					Constraint::Percentage(65),
+				])
+				.split(rect);
+
+			self.draw_branches(f, chunks[0]);
+			self.draw_form(f, chunks[1])?;
+		}
 		Ok(())
 	}
 }
@@ -484,23 +664,17 @@ impl Component for CreatePrTab {
 				true,
 			));
 			out.push(CommandInfo::new(
-				strings::commands::create_pr_submit(
-					&self.key_config,
-				),
+				strings::commands::create_pr_submit(&self.key_config),
 				!self.pending,
 				true,
 			));
 			out.push(CommandInfo::new(
-				strings::commands::create_pr_focus(
-					&self.key_config,
-				),
+				strings::commands::create_pr_focus(&self.key_config),
 				true,
 				true,
 			));
 			out.push(CommandInfo::new(
-				strings::commands::create_pr_back(
-					&self.key_config,
-				),
+				strings::commands::create_pr_back(&self.key_config),
 				true,
 				true,
 			));
@@ -513,49 +687,89 @@ impl Component for CreatePrTab {
 			return Ok(EventState::NotConsumed);
 		}
 
-		// Handle navigation before embedded text inputs (Esc/Tab would
-		// otherwise hide inputs or insert a tab character).
-		// Esc: title/body → branch list (tab menu). Stay there — do not
-		// jump to Status. From Branches, Tab bubbles to the app to cycle
-		// main tabs (wrapping to the first when past the last).
+		// Esc / Tab / Left / Right before text inputs so Esc does not
+		// hide the embedded fields and Tab does not insert a tab char.
 		if let Event::Key(k) = ev {
 			if key_match(k, self.key_config.keys.exit_popup) {
-				if self.focus != Focus::Branches {
-					self.focus = Focus::Branches;
-					self.apply_focus();
-					return Ok(EventState::Consumed);
+				match self.focus {
+					Focus::Branches => {
+						return Ok(EventState::NotConsumed);
+					}
+					Focus::Diff => {
+						self.focus = Focus::Files;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Files => {
+						self.focus = Focus::Body;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Title | Focus::Body => {
+						self.focus = Focus::Branches;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
 				}
-				// Already on the tab menu (branch list) — leave Esc alone.
-				return Ok(EventState::NotConsumed);
 			}
 			if key_match(k, self.key_config.keys.tab_toggle) {
 				if self.focus == Focus::Branches {
-					// Let App::toggle_tabs move to the next main tab.
 					return Ok(EventState::NotConsumed);
 				}
 				self.cycle_focus(false);
 				return Ok(EventState::Consumed);
 			}
-			if key_match(k, self.key_config.keys.tab_toggle_reverse)
-			{
+			if key_match(k, self.key_config.keys.tab_toggle_reverse) {
 				if self.focus == Focus::Branches {
 					return Ok(EventState::NotConsumed);
 				}
 				self.cycle_focus(true);
 				return Ok(EventState::Consumed);
 			}
-			if key_match(k, self.key_config.keys.move_right)
-				&& self.focus == Focus::Branches
-			{
-				self.cycle_focus(false);
-				return Ok(EventState::Consumed);
+			if key_match(k, self.key_config.keys.move_right) {
+				match self.focus {
+					Focus::Branches => {
+						self.cycle_focus(false);
+						return Ok(EventState::Consumed);
+					}
+					Focus::Body if self.has_compare() => {
+						self.focus = Focus::Files;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Files
+						if self
+							.details
+							.files()
+							.selection_file()
+							.is_some() =>
+					{
+						self.focus = Focus::Diff;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					_ => {}
+				}
 			}
-			if key_match(k, self.key_config.keys.move_left)
-				&& self.focus != Focus::Branches
-			{
-				self.focus = Focus::Branches;
-				self.apply_focus();
-				return Ok(EventState::Consumed);
+			if key_match(k, self.key_config.keys.move_left) {
+				match self.focus {
+					Focus::Diff => {
+						self.focus = Focus::Files;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Files => {
+						self.focus = Focus::Body;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Title | Focus::Body => {
+						self.focus = Focus::Branches;
+						self.apply_focus();
+						return Ok(EventState::Consumed);
+					}
+					Focus::Branches => {}
+				}
 			}
 		}
 
@@ -566,6 +780,17 @@ impl Component for CreatePrTab {
 		}
 		if self.focus == Focus::Body
 			&& self.body.event(ev)?.is_consumed()
+		{
+			return Ok(EventState::Consumed);
+		}
+		if self.focus == Focus::Files
+			&& self.details.event(ev)?.is_consumed()
+		{
+			self.update_diff()?;
+			return Ok(EventState::Consumed);
+		}
+		if self.focus == Focus::Diff
+			&& self.diff.event(ev)?.is_consumed()
 		{
 			return Ok(EventState::Consumed);
 		}
@@ -596,6 +821,7 @@ impl Component for CreatePrTab {
 
 			if k.code == crossterm::event::KeyCode::Char('b')
 				&& k.modifiers.is_empty()
+				&& !matches!(self.focus, Focus::Title | Focus::Body)
 			{
 				self.set_base_from_selection();
 				return Ok(EventState::Consumed);
@@ -618,6 +844,7 @@ impl Component for CreatePrTab {
 		self.visible = false;
 		self.title.hide();
 		self.body.hide();
+		self.details.hide();
 	}
 
 	fn show(&mut self) -> Result<()> {
