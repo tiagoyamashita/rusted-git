@@ -344,10 +344,10 @@ pub fn graph_title(_key_config: &SharedKeyConfig) -> String {
 	"Graph".to_string()
 }
 pub fn create_pr_title_input() -> String {
-	"Title".to_string()
+	"Type PR title here".to_string()
 }
 pub fn create_pr_body_input() -> String {
-	"Body".to_string()
+	"Type PR description here".to_string()
 }
 pub fn help_title(_key_config: &SharedKeyConfig) -> String {
 	"Help: all commands".to_string()

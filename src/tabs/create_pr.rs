@@ -18,7 +18,7 @@ use asyncgit::{
 };
 use crossterm::event::Event;
 use ratatui::{
-	layout::{Constraint, Direction, Layout, Rect},
+	layout::{Constraint, Direction, Layout, Margin, Rect},
 	text::{Line, Span},
 	widgets::{Block, Borders, List, ListItem, Paragraph},
 	Frame,
@@ -88,7 +88,7 @@ impl CreatePrTab {
 			body,
 			job: AsyncSingleJob::new(env.sender_git.clone()),
 			status: String::from(
-				"Select a branch, set base/title, then create",
+				"1) pick branches  2) Tab to PR Title  3) Tab to Description  4) c to create",
 			),
 			pending: false,
 		}
@@ -204,7 +204,11 @@ impl CreatePrTab {
 			if self.title.get_text().trim().is_empty() {
 				self.title.set_text(format!("Merge {name}"));
 			}
-			self.status = format!("Head set to `{name}`");
+			self.status = format!(
+				"Head set to `{name}`. Tab to edit PR Title, then Description."
+			);
+			self.focus = Focus::Title;
+			self.apply_focus();
 		}
 	}
 
@@ -213,7 +217,9 @@ impl CreatePrTab {
 			self.selected_branch().map(|b| b.name.clone())
 		{
 			self.base_branch = name.clone();
-			self.status = format!("Base set to `{name}`");
+			self.status = format!(
+				"Base set to `{name}`. Enter sets head, then Tab to PR Title."
+			);
 		}
 	}
 
@@ -315,7 +321,7 @@ impl CreatePrTab {
 			.collect();
 
 		let title = if self.focus == Focus::Branches {
-			"Branches [focused]"
+			"Branches [focused]  Enter=head  b=base"
 		} else {
 			"Branches"
 		};
@@ -338,9 +344,9 @@ impl CreatePrTab {
 			.direction(Direction::Vertical)
 			.constraints([
 				Constraint::Length(3),
+				Constraint::Length(2),
 				Constraint::Length(3),
-				Constraint::Length(3),
-				Constraint::Min(5),
+				Constraint::Min(6),
 				Constraint::Length(3),
 			])
 			.split(area);
@@ -360,19 +366,31 @@ impl CreatePrTab {
 		]))
 		.block(
 			Block::default()
-				.title("Pull Request")
+				.title("Pull Request target")
 				.borders(Borders::ALL),
 		);
 		f.render_widget(summary, chunks[0]);
 
 		let help = Paragraph::new(Line::from(Span::styled(
-			"Enter=set head  |  b=set base  |  Tab=focus  |  Esc=back  |  c=create",
+			"Enter=set head  |  b=set base  |  Tab=next field  |  Esc=back  |  c=create PR",
 			self.theme.text(false, false),
 		)));
 		f.render_widget(help, chunks[1]);
 
-		self.title.draw(f, chunks[2])?;
-		self.body.draw(f, chunks[3])?;
+		self.draw_labeled_input(
+			f,
+			chunks[2],
+			"PR Title",
+			self.focus == Focus::Title,
+			&self.title,
+		)?;
+		self.draw_labeled_input(
+			f,
+			chunks[3],
+			"PR Description",
+			self.focus == Focus::Body,
+			&self.body,
+		)?;
 
 		let status = Paragraph::new(Line::from(Span::styled(
 			self.status.clone(),
@@ -384,6 +402,35 @@ impl CreatePrTab {
 		f.render_widget(status, chunks[4]);
 
 		Ok(())
+	}
+
+	fn draw_labeled_input(
+		&self,
+		f: &mut Frame,
+		area: Rect,
+		label: &str,
+		focused: bool,
+		input: &TextInputComponent,
+	) -> Result<()> {
+		let title = if focused {
+			format!("{label} [focused — type here]")
+		} else {
+			format!("{label} (Tab to edit)")
+		};
+
+		f.render_widget(
+			Block::default()
+				.title(title)
+				.borders(Borders::ALL)
+				.border_style(self.theme.block(focused)),
+			area,
+		);
+
+		let inner = area.inner(Margin {
+			horizontal: 1,
+			vertical: 1,
+		});
+		input.draw(f, inner)
 	}
 }
 
