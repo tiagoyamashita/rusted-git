@@ -2012,6 +2012,19 @@ pub mod commands {
 			CMD_GROUP_GENERAL,
 		)
 	}
+
+	pub fn create_pr_back(
+		key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			format!(
+				"Back [{}]",
+				key_config.get_hint(key_config.keys.exit_popup),
+			),
+			"leave form focus, or leave PR tab",
+			CMD_GROUP_GENERAL,
+		)
+	}
 }
 
 #[cfg(test)]

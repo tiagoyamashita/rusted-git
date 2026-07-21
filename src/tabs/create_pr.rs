@@ -366,7 +366,7 @@ impl CreatePrTab {
 		f.render_widget(summary, chunks[0]);
 
 		let help = Paragraph::new(Line::from(Span::styled(
-			"Enter=set head  |  b=set base  |  Tab=focus  |  Esc=branches  |  c=create",
+			"Enter=set head  |  b=set base  |  Tab=focus  |  Esc=back  |  c=create",
 			self.theme.text(false, false),
 		)));
 		f.render_widget(help, chunks[1]);
@@ -450,6 +450,13 @@ impl Component for CreatePrTab {
 				true,
 				true,
 			));
+			out.push(CommandInfo::new(
+				strings::commands::create_pr_back(
+					&self.key_config,
+				),
+				true,
+				true,
+			));
 		}
 		visibility_blocking(self)
 	}
@@ -462,6 +469,7 @@ impl Component for CreatePrTab {
 		// Handle navigation keys before embedded text inputs.
 		// TextInputComponent treats Esc as "close popup" (hides itself)
 		// and Tab as insert-tab — both break this tab's UX.
+		// Esc: title/body → branch list; branch list → leave PR tab.
 		if let Event::Key(k) = ev {
 			if key_match(k, self.key_config.keys.exit_popup) {
 				if self.focus != Focus::Branches {
@@ -469,7 +477,8 @@ impl Component for CreatePrTab {
 					self.apply_focus();
 					return Ok(EventState::Consumed);
 				}
-				return Ok(EventState::NotConsumed);
+				self.queue.push(InternalEvent::TabSwitchStatus);
+				return Ok(EventState::Consumed);
 			}
 			if key_match(k, self.key_config.keys.tab_toggle) {
 				self.cycle_focus(false);
