@@ -69,7 +69,10 @@ pub use crate::{
 	blame::{AsyncBlame, BlameParams},
 	branches::AsyncBranchesJob,
 	commit_files::{AsyncCommitFiles, CommitFilesParams},
-	create_pr::{AsyncCreatePrJob, CreatePrRequest},
+	create_pr::{
+		AsyncCreatePrJob, AsyncListOpenPrsJob, CreatePrRequest,
+		OpenPrInfo,
+	},
 	diff::{AsyncDiff, DiffParams, DiffType},
 	error::{Error, Result},
 	fetch_job::AsyncFetchJob,
@@ -132,6 +135,8 @@ pub enum AsyncGitNotification {
 	CommitFilter,
 	///
 	CreatePr,
+	/// Open pull requests were listed.
+	OpenPrs,
 }
 
 /// helper function to calculate the hash of an arbitrary type that implements the `Hash` trait

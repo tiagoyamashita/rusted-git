@@ -20,7 +20,8 @@ use asyncgit::{
 		CommitId, RepoPathRef,
 	},
 	AsyncCreatePrJob, AsyncDiff, AsyncGitNotification,
-	CommitFilesParams, CreatePrRequest, DiffParams, DiffType,
+	AsyncListOpenPrsJob, CommitFilesParams, CreatePrRequest,
+	DiffParams, DiffType, OpenPrInfo,
 };
 use crossterm::event::Event;
 use ratatui::{
@@ -59,6 +60,9 @@ pub struct CreatePrTab {
 	diff: DiffComponent,
 	git_diff: AsyncDiff,
 	job: AsyncSingleJob<AsyncCreatePrJob>,
+	open_pr_job: AsyncSingleJob<AsyncListOpenPrsJob>,
+	open_prs: Vec<OpenPrInfo>,
+	open_prs_requested: bool,
 	status: String,
 	pending: bool,
 }
@@ -106,6 +110,9 @@ impl CreatePrTab {
 				&env.sender_git,
 			),
 			job: AsyncSingleJob::new(env.sender_git.clone()),
+			open_pr_job: AsyncSingleJob::new(env.sender_git.clone()),
+			open_prs: Vec::new(),
+			open_prs_requested: false,
 			status: String::from(
 				"1) pick branches  2) Tab to PR Title  3) Tab to Description  4) c to create",
 			),
@@ -163,6 +170,12 @@ impl CreatePrTab {
 				);
 			}
 		}
+		if !self.open_prs_requested {
+			self.open_prs_requested = true;
+			self.open_pr_job.spawn(AsyncListOpenPrsJob::new(
+				self.repo.borrow().clone(),
+			));
+		}
 
 		self.refresh_compare()?;
 		self.apply_focus();
@@ -185,6 +198,11 @@ impl CreatePrTab {
 					match job.result() {
 						Some(Ok(msg)) => {
 							self.status = format!("Created: {msg}");
+							self.open_pr_job.spawn(
+								AsyncListOpenPrsJob::new(
+									self.repo.borrow().clone(),
+								),
+							);
 							self.queue.push(
 								InternalEvent::ShowInfoMsg(msg),
 							);
@@ -211,6 +229,21 @@ impl CreatePrTab {
 			AsyncGitNotification::Diff => {
 				self.update_diff()?;
 			}
+			AsyncGitNotification::OpenPrs => {
+				if let Some(job) = self.open_pr_job.take_last() {
+					match job.result() {
+						Some(Ok(open_prs)) => {
+							self.open_prs = open_prs;
+						}
+						Some(Err(error)) => {
+							self.status = format!(
+								"Could not list open PRs: {error}"
+							);
+						}
+						None => {}
+					}
+				}
+			}
 			_ => {}
 		}
 
@@ -221,6 +254,7 @@ impl CreatePrTab {
 	pub fn any_work_pending(&self) -> bool {
 		self.git_diff.is_pending()
 			|| self.details.any_work_pending()
+			|| self.open_pr_job.is_pending()
 			|| self.pending
 	}
 
@@ -496,6 +530,9 @@ impl CreatePrTab {
 				} else {
 					"[remote] "
 				};
+				let merge_status = branch_merge_status(b);
+				let open_pr_status =
+					branch_open_pr_status(b, &self.open_prs);
 				let marker = if is_head && is_base {
 					"*="
 				} else if is_head {
@@ -510,7 +547,10 @@ impl CreatePrTab {
 					selected && self.focus == Focus::Branches,
 				);
 				ListItem::new(Line::from(Span::styled(
-					format!("{marker}{kind}{}", b.name),
+					format!(
+						"{marker}{kind}{} {merge_status}{open_pr_status}",
+						b.name,
+					),
 					style,
 				)))
 			})
@@ -676,6 +716,37 @@ fn default_base_branch(branches: &[BranchInfo]) -> String {
 
 fn remote_branch_name(name: &str) -> &str {
 	name.split_once('/').map_or(name, |(_, branch)| branch)
+}
+
+fn branch_merge_status(branch: &BranchInfo) -> String {
+	if matches!(remote_branch_name(&branch.name), "main" | "master") {
+		return String::from("[primary]");
+	}
+	if let Some(target) = &branch.merged_into {
+		return format!("[merged → {}]", remote_branch_name(target));
+	}
+	if let Some(target) = &branch.merge_target {
+		return format!(
+			"[not merged → {}]",
+			remote_branch_name(target)
+		);
+	}
+	String::from("[no main/master]")
+}
+
+fn branch_open_pr_status(
+	branch: &BranchInfo,
+	open_prs: &[OpenPrInfo],
+) -> String {
+	if branch.is_local() {
+		return String::new();
+	}
+
+	open_prs
+		.iter()
+		.filter(|pr| pr.head == remote_branch_name(&branch.name))
+		.map(|pr| format!(" [open PR #{} → {}]", pr.number, pr.base))
+		.collect()
 }
 
 impl DrawableComponent for CreatePrTab {
