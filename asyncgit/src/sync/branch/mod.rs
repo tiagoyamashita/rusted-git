@@ -91,6 +91,8 @@ pub struct BranchInfo {
 	pub top_commit_message: String,
 	///
 	pub top_commit: CommitId,
+	/// Whether this local branch's tip is contained in `main` or `master`.
+	pub is_merged_to_primary: bool,
 	///
 	pub details: BranchDetails,
 }
@@ -129,6 +131,19 @@ pub fn get_branches_info(
 	scope_time!("get_branches_info");
 
 	let repo = repo(repo_path)?;
+	let primary_tips: Vec<_> = if local {
+		["main", "master"]
+			.into_iter()
+			.filter_map(|name| {
+				repo.find_branch(name, BranchType::Local)
+					.ok()
+					.and_then(|branch| branch.get().target())
+					.map(|id| (name, id))
+			})
+			.collect()
+	} else {
+		Vec::new()
+	};
 
 	let (filter, remotes_with_tracking) = if local {
 		(BranchType::Local, HashSet::default())
@@ -166,6 +181,20 @@ pub fn get_branches_info(
 				.map(String::from);
 
 			let name_bytes = branch.name_bytes()?;
+			let name = bytes2string(name_bytes)?;
+			let top_commit_id = top_commit.id();
+			let is_merged_to_primary = primary_tips.iter().any(
+				|(primary_name, primary_tip)| {
+					name != *primary_name
+						&& (*primary_tip == top_commit_id
+							|| repo
+								.graph_descendant_of(
+									*primary_tip,
+									top_commit_id,
+								)
+								.unwrap_or(false))
+				},
+			);
 
 			let upstream_branch =
 				upstream.ok().and_then(|upstream| {
@@ -189,12 +218,13 @@ pub fn get_branches_info(
 			};
 
 			Ok(BranchInfo {
-				name: bytes2string(name_bytes)?,
+				name,
 				reference,
 				top_commit_message: bytes2string(
 					top_commit.summary_bytes().unwrap_or_default(),
 				)?,
-				top_commit: top_commit.id().into(),
+				top_commit: top_commit_id.into(),
+				is_merged_to_primary,
 				details,
 			})
 		})
@@ -573,6 +603,40 @@ mod tests_branches {
 				.collect::<Vec<_>>(),
 			vec!["master", "test"]
 		);
+	}
+
+	#[test]
+	fn test_reports_branches_merged_to_master() {
+		let (_td, repo) = repo_init().unwrap();
+		let root = repo.path().parent().unwrap();
+		let repo_path: &RepoPath =
+			&root.as_os_str().to_str().unwrap().into();
+
+		create_branch(repo_path, "merged").unwrap();
+		checkout_branch(repo_path, "master").unwrap();
+		write_commit_file(&repo, "master.txt", "master", "master");
+
+		create_branch(repo_path, "unmerged").unwrap();
+		write_commit_file(&repo, "unmerged.txt", "branch", "branch");
+		checkout_branch(repo_path, "master").unwrap();
+
+		let branches = get_branches_info(repo_path, true).unwrap();
+		let merged = branches
+			.iter()
+			.find(|branch| branch.name == "merged")
+			.unwrap();
+		let unmerged = branches
+			.iter()
+			.find(|branch| branch.name == "unmerged")
+			.unwrap();
+		let master = branches
+			.iter()
+			.find(|branch| branch.name == "master")
+			.unwrap();
+
+		assert!(merged.is_merged_to_primary);
+		assert!(!unmerged.is_merged_to_primary);
+		assert!(!master.is_merged_to_primary);
 	}
 
 	fn clone_branch_commit_push(target: &str, branch_name: &str) {
