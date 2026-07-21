@@ -39,7 +39,7 @@ enum Focus {
 	Diff,
 }
 
-/// Tab to create a GitHub pull request from a local branch via `gh`.
+/// Tab to create a GitHub pull request from remote branches via `gh`.
 pub struct CreatePrTab {
 	repo: RepoPathRef,
 	queue: Queue,
@@ -119,7 +119,34 @@ impl CreatePrTab {
 			return Ok(());
 		}
 
-		self.branches = get_branches_info(&self.repo.borrow(), true)?;
+		let repo = self.repo.borrow();
+		let mut local_branches = get_branches_info(&repo, true)?;
+		let remote_branches = get_branches_info(&repo, false)?;
+
+		let current_remote =
+			sync::get_head_tuple(&repo).ok().and_then(|head| {
+				let local_name = head
+					.name
+					.strip_prefix("refs/heads/")
+					.unwrap_or(head.name.as_str());
+				local_branches
+					.iter()
+					.find(|branch| branch.name == local_name)
+					.and_then(BranchInfo::local_details)
+					.and_then(|details| details.upstream.as_ref())
+					.and_then(|upstream| {
+						remote_branches
+							.iter()
+							.find(|branch| {
+								branch.reference == upstream.reference
+							})
+							.map(|branch| branch.name.clone())
+					})
+			});
+
+		local_branches.extend(remote_branches);
+		self.branches = local_branches;
+		drop(repo);
 		if self.selection >= self.branches.len() {
 			self.selection = self.branches.len().saturating_sub(1);
 		}
@@ -129,16 +156,11 @@ impl CreatePrTab {
 		}
 
 		if self.head_branch.is_empty() {
-			if let Ok(head) =
-				sync::get_head_tuple(&self.repo.borrow())
-			{
-				self.head_branch = head
-					.name
-					.strip_prefix("refs/heads/")
-					.unwrap_or(head.name.as_str())
-					.to_string();
-			} else if let Some(b) = self.branches.first() {
-				self.head_branch = b.name.clone();
+			self.head_branch = current_remote.unwrap_or_default();
+			if self.head_branch.is_empty() {
+				self.status = String::from(
+					"Current branch has no remote branch. Push it, then select a [remote] head.",
+				);
 			}
 		}
 
@@ -289,6 +311,16 @@ impl CreatePrTab {
 		self.branches.get(self.selection)
 	}
 
+	fn selected_remote_branch(&self) -> Option<&BranchInfo> {
+		self.selected_branch().filter(|branch| !branch.is_local())
+	}
+
+	fn is_remote_selection(&self, name: &str) -> bool {
+		self.branches
+			.iter()
+			.any(|branch| branch.name == name && !branch.is_local())
+	}
+
 	fn move_selection(&mut self, scroll: ScrollType) {
 		if self.branches.is_empty() {
 			return;
@@ -305,8 +337,9 @@ impl CreatePrTab {
 	}
 
 	fn set_head_from_selection(&mut self) {
-		if let Some(name) =
-			self.selected_branch().map(|b| b.name.clone())
+		if let Some(name) = self
+			.selected_remote_branch()
+			.map(|branch| branch.name.clone())
 		{
 			self.head_branch = name.clone();
 			if self.title.get_text().trim().is_empty() {
@@ -325,12 +358,17 @@ impl CreatePrTab {
 			self.focus = Focus::Title;
 			let _ = self.refresh_compare();
 			self.apply_focus();
+		} else {
+			self.status = String::from(
+				"PR head must be a [remote] branch. Push the local branch first.",
+			);
 		}
 	}
 
 	fn set_base_from_selection(&mut self) {
-		if let Some(name) =
-			self.selected_branch().map(|b| b.name.clone())
+		if let Some(name) = self
+			.selected_remote_branch()
+			.map(|branch| branch.name.clone())
 		{
 			self.base_branch = name.clone();
 			self.status = if self.has_compare() {
@@ -344,6 +382,9 @@ impl CreatePrTab {
 				)
 			};
 			let _ = self.refresh_compare();
+		} else {
+			self.status =
+				String::from("PR base must be a [remote] branch.");
 		}
 	}
 
@@ -403,6 +444,14 @@ impl CreatePrTab {
 				String::from("base and head branches are required");
 			return;
 		}
+		if !self.is_remote_selection(&self.head_branch)
+			|| !self.is_remote_selection(&self.base_branch)
+		{
+			self.status = String::from(
+				"base and head must both be remote branches",
+			);
+			return;
+		}
 
 		self.pending = true;
 		self.status = format!(
@@ -413,8 +462,10 @@ impl CreatePrTab {
 		let job = AsyncCreatePrJob::new(
 			self.repo.borrow().clone(),
 			CreatePrRequest {
-				base: self.base_branch.clone(),
-				head: self.head_branch.clone(),
+				base: remote_branch_name(&self.base_branch)
+					.to_string(),
+				head: remote_branch_name(&self.head_branch)
+					.to_string(),
 				title,
 				body,
 			},
@@ -440,6 +491,11 @@ impl CreatePrTab {
 				let selected = idx == self.selection;
 				let is_head = b.name == self.head_branch;
 				let is_base = b.name == self.base_branch;
+				let kind = if b.is_local() {
+					"[local] "
+				} else {
+					"[remote] "
+				};
 				let marker = if is_head && is_base {
 					"*="
 				} else if is_head {
@@ -454,14 +510,14 @@ impl CreatePrTab {
 					selected && self.focus == Focus::Branches,
 				);
 				ListItem::new(Line::from(Span::styled(
-					format!("{marker}{}", b.name),
+					format!("{marker}{kind}{}", b.name),
 					style,
 				)))
 			})
 			.collect();
 
 		let title = if self.focus == Focus::Branches {
-			"Branches [focused]  Enter=head  b=base"
+			"Branches [focused]  Enter=head  b=base (remote only)"
 		} else {
 			"Branches"
 		};
@@ -604,11 +660,22 @@ impl CreatePrTab {
 
 fn default_base_branch(branches: &[BranchInfo]) -> String {
 	for name in ["main", "master", "develop"] {
-		if branches.iter().any(|b| b.name == name) {
-			return name.to_string();
+		if let Some(branch) = branches.iter().find(|branch| {
+			!branch.is_local()
+				&& remote_branch_name(&branch.name) == name
+		}) {
+			return branch.name.clone();
 		}
 	}
-	branches.first().map(|b| b.name.clone()).unwrap_or_default()
+	branches
+		.iter()
+		.find(|branch| !branch.is_local())
+		.map(|branch| branch.name.clone())
+		.unwrap_or_default()
+}
+
+fn remote_branch_name(name: &str) -> &str {
+	name.split_once('/').map_or(name, |(_, branch)| branch)
 }
 
 impl DrawableComponent for CreatePrTab {
@@ -649,23 +716,28 @@ impl Component for CreatePrTab {
 		force_all: bool,
 	) -> CommandBlocking {
 		if self.visible || force_all {
+			let remote_selected = self
+				.selected_branch()
+				.is_some_and(|branch| !branch.is_local());
 			out.push(CommandInfo::new(
 				strings::commands::create_pr_set_head(
 					&self.key_config,
 				),
-				!self.branches.is_empty(),
+				remote_selected,
 				true,
 			));
 			out.push(CommandInfo::new(
 				strings::commands::create_pr_set_base(
 					&self.key_config,
 				),
-				!self.branches.is_empty(),
+				remote_selected,
 				true,
 			));
 			out.push(CommandInfo::new(
 				strings::commands::create_pr_submit(&self.key_config),
-				!self.pending,
+				!self.pending
+					&& self.is_remote_selection(&self.base_branch)
+					&& self.is_remote_selection(&self.head_branch),
 				true,
 			));
 			out.push(CommandInfo::new(
@@ -854,5 +926,20 @@ impl Component for CreatePrTab {
 		self.update()?;
 		self.apply_focus();
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::remote_branch_name;
+
+	#[test]
+	fn remote_branch_name_removes_only_remote_prefix() {
+		assert_eq!(remote_branch_name("origin/main"), "main");
+		assert_eq!(
+			remote_branch_name("upstream/feature/nested"),
+			"feature/nested"
+		);
+		assert_eq!(remote_branch_name("main"), "main");
 	}
 }
