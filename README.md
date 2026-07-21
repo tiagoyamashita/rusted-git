@@ -5,21 +5,21 @@
 
 </h1>
 
-[s0]: https://github.com/gitui-org/gitui/workflows/CI/badge.svg
-[l0]: https://github.com/gitui-org/gitui/actions
-[s1]: https://img.shields.io/crates/v/gitui.svg
-[l1]: https://crates.io/crates/gitui
+[s0]: https://github.com/tiagoyamashita/rusted-git/workflows/CI/badge.svg
+[l0]: https://github.com/tiagoyamashita/rusted-git/actions
+[s1]: https://img.shields.io/crates/v/rusted-git.svg
+[l1]: https://crates.io/crates/rusted-git
 [s2]: https://img.shields.io/badge/license-MIT-blue.svg
 [s3]: https://img.shields.io/badge/unsafe-forbidden-success.svg
 [l3]: https://github.com/rust-secure-code/safety-dance/
 [s6]: https://img.shields.io/twitter/follow/extrawurst?label=follow&style=social
 [l6]: https://twitter.com/intent/follow?screen_name=extrawurst
-[s7]: https://deps.rs/repo/github/gitui-org/gitui/status.svg
-[l7]: https://deps.rs/repo/github/gitui-org/gitui
+[s7]: https://deps.rs/repo/github/tiagoyamashita/rusted-git/status.svg
+[l7]: https://deps.rs/repo/github/tiagoyamashita/rusted-git
 [s8]: https://img.shields.io/discord/1176858176897953872
 [l8]: https://discord.gg/rQNeEnMhus
 
-<h5 align="center">GitUI provides you with the comfort of a git GUI but right in your terminal</h1>
+<h5 align="center">rusted-git provides you with the comfort of a git GUI but right in your terminal</h1>
 
 ![](demo.gif)
 
@@ -54,7 +54,7 @@
 - Responsive terminal UI
 - Async git API for fluid control
 - Submodule support
-- gpg commit signing with shortcomings (see [#97](https://github.com/gitui-org/gitui/issues/97)))
+- gpg commit signing with shortcomings (see [#97](https://github.com/tiagoyamashita/rusted-git/issues/97)))
 
 ## 2. <a name="motivation"></a> Motivation <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
@@ -62,15 +62,15 @@ I do most of my git work in a terminal but I frequently found myself using git G
 
 Unfortunately popular git GUIs all fail on giant repositories or become unresponsive and unusable.
 
-GitUI provides you with the user experience and comfort of a git GUI but right in your terminal while being portable, fast, free and opensource.
+rusted-git provides you with the user experience and comfort of a git GUI but right in your terminal while being portable, fast, free and opensource.
 
 ## 3. <a name="bench"></a> Benchmarks <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
-For a [RustBerlin meetup presentation](https://youtu.be/rpilJV-eIVw?t=5334) ([slides](https://github.com/extrawurst/gitui-presentation)) I compared `lazygit`,`tig` and `gitui` by parsing the entire Linux git repository (which contains over 900k commits):
+For a [RustBerlin meetup presentation](https://youtu.be/rpilJV-eIVw?t=5334) ([slides](https://github.com/extrawurst/gitui-presentation)) I compared `lazygit`,`tig` and `rusted-git` by parsing the entire Linux git repository (which contains over 900k commits):
 
 |           | Time       | Memory (GB) | Binary (MB) | Freezes   | Crashes   |
 | --------- | ---------- | ----------- | ----------- | --------- | --------- |
-| `gitui`   | **24 s** ✅ | **0.17** ✅  | 10         | **No** ✅  | **No** ✅  |
+| `rusted-git`   | **24 s** ✅ | **0.17** ✅  | 10         | **No** ✅  | **No** ✅  |
 | `lazygit` | 57 s       | 2.6         | 25          | Yes       | Sometimes |
 | `tig`     | 4 m 20 s   | 1.3         | **0.6** ✅   | Sometimes | **No** ✅  |
 
@@ -78,27 +78,27 @@ For a [RustBerlin meetup presentation](https://youtu.be/rpilJV-eIVw?t=5334) ([sl
 
 These are the high level goals before calling out `1.0`:
 
-* visualize branching structure in log tab ([#81](https://github.com/gitui-org/gitui/issues/81))
-* interactive rebase ([#32](https://github.com/gitui-org/gitui/issues/32))
-- no git-lfs support (see [#2812](https://github.com/gitui-org/gitui/issues/2812))
+* visualize branching structure in log tab ([#81](https://github.com/tiagoyamashita/rusted-git/issues/81))
+* interactive rebase ([#32](https://github.com/tiagoyamashita/rusted-git/issues/32))
+- no git-lfs support (see [#2812](https://github.com/tiagoyamashita/rusted-git/issues/2812))
 
 ## 5. <a name="limitations"></a> Known Limitations <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
-- no sparse repo support (see [#1226](https://github.com/gitui-org/gitui/issues/1226))
-- *credential.helper* for https needs to be **explicitly** configured (see [#800](https://github.com/gitui-org/gitui/issues/800))
+- no sparse repo support (see [#1226](https://github.com/tiagoyamashita/rusted-git/issues/1226))
+- *credential.helper* for https needs to be **explicitly** configured (see [#800](https://github.com/tiagoyamashita/rusted-git/issues/800))
 
 Currently, this tool does not fully substitute the _git shell_, however both tools work well in tandem.
 
-The priorities for `gitui` are on features that are making me mad when done on the _git shell_, like stashing, staging lines or hunks. Eventually, I will be able to work on making `gitui` a one stop solution - but for that I need help - this is just a spare time project for now.
+The priorities for `rusted-git` are on features that are making me mad when done on the _git shell_, like stashing, staging lines or hunks. Eventually, I will be able to work on making `rusted-git` a one stop solution - but for that I need help - this is just a spare time project for now.
 
 All support is welcomed! Sponsors as well! ❤️
 
 ## 6. <a name="installation"></a> Installation <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
-GitUI is in beta and may contain bugs and missing features. However, for personal use it is reasonably stable and is being used while developing itself.
+rusted-git is in beta and may contain bugs and missing features. However, for personal use it is reasonably stable and is being used while developing itself.
 
-<a href="https://repology.org/project/gitui/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/gitui.svg" alt="Packaging status" align="right">
+<a href="https://repology.org/project/rusted-git/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/rusted-git.svg" alt="Packaging status" align="right">
 </a>
 
 ### Various Package Managers
@@ -106,16 +106,16 @@ GitUI is in beta and may contain bugs and missing features. However, for persona
 <details>
   <summary>Install Instructions</summary>
 
-##### [Arch Linux](https://archlinux.org/packages/extra/x86_64/gitui/)
+##### [Arch Linux](https://archlinux.org/packages/extra/x86_64/rusted-git/)
 
 ```sh
-pacman -S gitui
+pacman -S rusted-git
 ```
 
 ##### Fedora
 
 ```sh
-sudo dnf install gitui
+sudo dnf install rusted-git
 ```
 
 ##### Gentoo
@@ -124,99 +124,99 @@ Available in [dm9pZCAq overlay](https://github.com/gentoo-mirror/dm9pZCAq)
 ```sh
 sudo eselect repository enable dm9pZCAq
 sudo emerge --sync dm9pZCAq
-sudo emerge dev-vcs/gitui::dm9pZCAq
+sudo emerge dev-vcs/rusted-git::dm9pZCAq
 ```
 
-##### [openSUSE](https://software.opensuse.org/package/gitui)
+##### [openSUSE](https://software.opensuse.org/package/rusted-git)
 
 ```sh
-sudo zypper install gitui
+sudo zypper install rusted-git
 ```
 
 ##### Homebrew (macOS)
 
 ```sh
-brew install gitui
+brew install rusted-git
 ```
 
-##### [MacPorts (macOS)](https://ports.macports.org/port/gitui/details/)
+##### [MacPorts (macOS)](https://ports.macports.org/port/rusted-git/details/)
 
 ```sh
-port install gitui
+port install rusted-git
 ```
 
-##### [Winget](https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/StephanDilly/gitui) (Windows)
+##### [Winget](https://github.com/microsoft/winget-pkgs/tree/master/manifests/s/StephanDilly/rusted-git) (Windows)
 
 ```
-winget install gitui
+winget install rusted-git
 ```
 
-##### [Scoop](https://github.com/ScoopInstaller/Main/blob/master/bucket/gitui.json) (Windows)
+##### [Scoop](https://github.com/ScoopInstaller/Main/blob/master/bucket/rusted-git.json) (Windows)
 
 ```
-scoop install gitui
+scoop install rusted-git
 ```
 
-##### [Chocolatey](https://chocolatey.org/packages/gitui) (Windows)
+##### [Chocolatey](https://chocolatey.org/packages/rusted-git) (Windows)
 
 ```
-choco install gitui
+choco install rusted-git
 ```
 
 ##### [Mise](https://github.com/jdx/mise)
 
 ```shell
-mise use -g gitui@latest
+mise use -g rusted-git@latest
 ```
 
-##### [Nix](https://search.nixos.org/packages?channel=unstable&show=gitui&from=0&size=50&sort=relevance&query=gitui) (Nix/NixOS)
+##### [Nix](https://search.nixos.org/packages?channel=unstable&show=rusted-git&from=0&size=50&sort=relevance&query=rusted-git) (Nix/NixOS)
 
 Nixpkg
 ```
-nix-env -iA nixpkgs.gitui
+nix-env -iA nixpkgs.rusted-git
 ```
 NixOS
 ```
-nix-env -iA nixos.gitui
+nix-env -iA nixos.rusted-git
 ```
 
-##### [Termux](https://github.com/termux/termux-packages/tree/master/packages/gitui) (Android)
+##### [Termux](https://github.com/termux/termux-packages/tree/master/packages/rusted-git) (Android)
 
 ```
-pkg install gitui
+pkg install rusted-git
 ```
 
-##### [Anaconda](https://anaconda.org/conda-forge/gitui)
+##### [Anaconda](https://anaconda.org/conda-forge/rusted-git)
 ```
-conda install -c conda-forge gitui
+conda install -c conda-forge rusted-git
 ```
 
 </details>
 
 ### Release Binaries
 
-[Available for download in releases](https://github.com/gitui-org/gitui/releases)
+[Available for download in releases](https://github.com/tiagoyamashita/rusted-git/releases)
 
 Binaries available for:
 
 #### Linux
 
-- gitui-linux-x86_64.tar.gz (linux musl statically linked)
-- gitui-linux-aarch64.tar.gz (linux on 64 bit arm)
-- gitui-linux-arm.tar.gz
-- gitui-linux-armv7.tar.gz
+- rusted-git-linux-x86_64.tar.gz (linux musl statically linked)
+- rusted-git-linux-aarch64.tar.gz (linux on 64 bit arm)
+- rusted-git-linux-arm.tar.gz
+- rusted-git-linux-armv7.tar.gz
 
 All contain a single binary file
 
 #### macOS
 
-- gitui-mac.tar.gz (arm64)
-- gitui-mac-x86.tar.gz (intel x86)
+- rusted-git-mac.tar.gz (arm64)
+- rusted-git-mac-x86.tar.gz (intel x86)
 
 #### Windows
 
-- gitui-win.tar.gz (single 64bit binary)
-- gitui-win.msi (64bit Installer package)
+- rusted-git-win.tar.gz (single 64bit binary)
+- rusted-git-win.msi (64bit Installer package)
 
 ### Nightly Builds
 
@@ -237,7 +237,7 @@ see [NIGHTLIES.md](./NIGHTLIES.md)
 
 ### Cargo Install
 
-The simplest way to start playing around with `gitui` is to have `cargo` build and install it with `cargo install gitui --locked`. If you are not familiar with rust and cargo: [Getting Started with Rust](https://doc.rust-lang.org/book/ch01-00-getting-started.html)
+The simplest way to start playing around with `rusted-git` is to have `cargo` build and install it with `cargo install rusted-git --locked`. If you are not familiar with rust and cargo: [Getting Started with Rust](https://doc.rust-lang.org/book/ch01-00-getting-started.html)
 
 ### Cargo Features
 #### trace-libgit
@@ -253,20 +253,20 @@ see [FAQs page](./FAQ.md)
 
 ## 9. <a name="diagnostics"></a> Diagnostics <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
-To run with logging enabled run `gitui -l`.
+To run with logging enabled run `rusted-git -l`.
 
 This will log to:
 
-- macOS: `$HOME/Library/Caches/gitui/gitui.log`
-- Linux using `XDG`: `$XDG_CACHE_HOME/gitui/gitui.log`
-- Linux: `$HOME/.cache/gitui/gitui.log`
-- Windows: `%LOCALAPPDATA%/gitui/gitui.log`
+- macOS: `$HOME/Library/Caches/rusted-git/rusted-git.log`
+- Linux using `XDG`: `$XDG_CACHE_HOME/rusted-git/rusted-git.log`
+- Linux: `$HOME/.cache/rusted-git/rusted-git.log`
+- Windows: `%LOCALAPPDATA%/rusted-git/rusted-git.log`
 
 ## 10. <a name="theme"></a> Color Theme <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
 ![](assets/light-theme.png)
 
-`gitui` should automatically work on both light and dark terminal themes.
+`rusted-git` should automatically work on both light and dark terminal themes.
 
 However, you can customize everything to your liking: See [Themes](THEMES.md).
 
@@ -292,10 +292,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 15. <a name="contributors"></a> Contributors <small><sup>[Top ▲](#table-of-contents)</sup></small>
 
-Thanks goes to all the contributors that help make GitUI amazing! ❤️
+Thanks goes to all the contributors that help make rusted-git amazing! ❤️
 
-Wanna become a co-maintainer? We are looking for [you](https://github.com/gitui-org/gitui/issues/2084)!
+Wanna become a co-maintainer? We are looking for [you](https://github.com/tiagoyamashita/rusted-git/issues/2084)!
 
-<a href="https://github.com/gitui-org/gitui/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=gitui-org/gitui" />
+<a href="https://github.com/tiagoyamashita/rusted-git/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=tiagoyamashita/rusted-git" />
 </a>

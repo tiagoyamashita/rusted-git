@@ -165,7 +165,7 @@ impl Options {
 
 	fn options_file(repo: &RepoPathRef) -> Result<PathBuf> {
 		let dir = repo_dir(&repo.borrow())?;
-		let dir = dir.join("gitui");
+		let dir = dir.join("rusted-git");
 		Ok(dir)
 	}
 }

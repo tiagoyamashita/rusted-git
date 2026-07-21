@@ -1,6 +1,6 @@
 /*!
 `AsyncGit` is a library that provides non-blocking access to Git
-operations, enabling `GitUI` to perform potentially slow Git operations
+operations, enabling `RustedGit` to perform potentially slow Git operations
 in the background while keeping the user interface responsive.
 
 It also provides synchronous Git operations.
@@ -48,6 +48,7 @@ mod blame;
 mod branches;
 pub mod cached;
 mod commit_files;
+mod create_pr;
 mod diff;
 mod error;
 mod fetch_job;
@@ -68,6 +69,7 @@ pub use crate::{
 	blame::{AsyncBlame, BlameParams},
 	branches::AsyncBranchesJob,
 	commit_files::{AsyncCommitFiles, CommitFilesParams},
+	create_pr::{AsyncCreatePrJob, CreatePrRequest},
 	diff::{AsyncDiff, DiffParams, DiffType},
 	error::{Error, Result},
 	fetch_job::AsyncFetchJob,
@@ -128,6 +130,8 @@ pub enum AsyncGitNotification {
 	TreeFiles,
 	///
 	CommitFilter,
+	///
+	CreatePr,
 }
 
 /// helper function to calculate the hash of an arbitrary type that implements the `Hash` trait
