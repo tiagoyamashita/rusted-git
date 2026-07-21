@@ -16,7 +16,7 @@ use crate::{
 };
 use anyhow::Result;
 use asyncgit::{hash, sync::CommitId, StatusItem, StatusItemType};
-use crossterm::event::Event;
+use crossterm::event::{Event, MouseButton, MouseEventKind};
 use ratatui::{layout::Rect, text::Span, Frame};
 use std::{borrow::Cow, cell::Cell, path::Path};
 
@@ -37,6 +37,7 @@ pub struct StatusTreeComponent {
 	scroll_top: Cell<usize>,
 	visible: bool,
 	revision: Option<CommitId>,
+	last_area: Cell<Rect>,
 }
 
 impl StatusTreeComponent {
@@ -55,6 +56,7 @@ impl StatusTreeComponent {
 			pending: true,
 			visible: false,
 			revision: None,
+			last_area: Cell::new(Rect::default()),
 		}
 	}
 
@@ -327,6 +329,33 @@ impl StatusTreeComponent {
 			_ => {}
 		}
 	}
+
+	fn click_at(&mut self, column: u16, row: u16) -> bool {
+		let area = self.last_area.get();
+		if column < area.x
+			|| column >= area.x.saturating_add(area.width)
+			|| row <= area.y
+			|| row
+				>= area
+					.y
+					.saturating_add(area.height)
+					.saturating_sub(1)
+		{
+			return false;
+		}
+
+		let visual_row = usize::from(row.saturating_sub(area.y + 1));
+		let visible_index = self.scroll_top.get() + visual_row;
+		if !self.tree.select_visible_index(visible_index) {
+			return false;
+		}
+
+		if self.tree.activate_selection() {
+			self.queue.push(InternalEvent::Update(NeedsUpdate::DIFF));
+		}
+
+		true
+	}
 }
 
 /// Used for drawing the `FileTreeComponent`
@@ -342,6 +371,8 @@ impl DrawableComponent for StatusTreeComponent {
 		if !self.is_visible() {
 			return Ok(());
 		}
+
+		self.last_area.set(r);
 
 		if self.pending {
 			let items = vec![Span::styled(
@@ -472,6 +503,17 @@ impl Component for StatusTreeComponent {
 	}
 
 	fn event(&mut self, ev: &Event) -> Result<EventState> {
+		if let Event::Mouse(mouse) = ev {
+			if self.focused
+				&& mouse.kind
+					== MouseEventKind::Down(MouseButton::Left)
+				&& self.click_at(mouse.column, mouse.row)
+			{
+				return Ok(EventState::Consumed);
+			}
+			return Ok(EventState::NotConsumed);
+		}
+
 		if self.focused {
 			if let Event::Key(e) = ev {
 				return if key_match(e, self.key_config.keys.blame) {

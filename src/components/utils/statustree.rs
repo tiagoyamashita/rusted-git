@@ -168,6 +168,52 @@ impl StatusTree {
 		self.selection.map(|i| self.tree[i].clone())
 	}
 
+	/// Select the Nth currently visible/selectable tree row.
+	///
+	/// Returns `true` when `visible_index` maps to a real item (even if it
+	/// was already selected).
+	pub fn select_visible_index(
+		&mut self,
+		visible_index: usize,
+	) -> bool {
+		let visible: Vec<usize> = self
+			.available_selections
+			.iter()
+			.copied()
+			.filter(|idx| self.is_visible_index(*idx))
+			.collect();
+
+		let Some(absolute) = visible.get(visible_index).copied()
+		else {
+			return false;
+		};
+
+		self.selection = Some(absolute);
+		true
+	}
+
+	/// Toggle folder expand/collapse. Returns `true` when a file is selected.
+	pub fn activate_selection(&mut self) -> bool {
+		let Some(selection) = self.selection else {
+			return false;
+		};
+
+		let item_kind = self.tree[selection].kind.clone();
+		let item_path = self.tree[selection].info.full_path.clone();
+
+		match item_kind {
+			FileTreeItemKind::File(_) => true,
+			FileTreeItemKind::Path(PathCollapsed(collapsed)) => {
+				if collapsed {
+					self.expand(&item_path, selection);
+				} else {
+					self.collapse(&item_path, selection);
+				}
+				false
+			}
+		}
+	}
+
 	///
 	pub const fn is_empty(&self) -> bool {
 		self.tree.items().is_empty()

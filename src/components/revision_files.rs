@@ -21,7 +21,7 @@ use asyncgit::{
 	},
 	AsyncGitNotification, AsyncTreeFilesJob,
 };
-use crossterm::event::Event;
+use crossterm::event::{Event, MouseButton, MouseEventKind};
 use filetreelist::{FileTree, FileTreeItem};
 use ratatui::{
 	layout::{Constraint, Direction, Layout, Rect},
@@ -29,7 +29,7 @@ use ratatui::{
 	widgets::{Block, Borders},
 	Frame,
 };
-use std::{borrow::Cow, fmt::Write};
+use std::{borrow::Cow, cell::Cell, fmt::Write};
 use std::{
 	collections::BTreeSet,
 	path::{Path, PathBuf},
@@ -57,6 +57,7 @@ pub struct RevisionFilesComponent {
 	focus: Focus,
 	key_config: SharedKeyConfig,
 	select_file: Option<PathBuf>,
+	last_tree_area: Cell<Rect>,
 }
 
 impl RevisionFilesComponent {
@@ -81,6 +82,7 @@ impl RevisionFilesComponent {
 			repo: env.repo.clone(),
 			select_file,
 			visible: false,
+			last_tree_area: Cell::new(Rect::default()),
 		}
 	}
 
@@ -285,7 +287,36 @@ impl RevisionFilesComponent {
 		}
 	}
 
+	fn click_tree(&mut self, column: u16, row: u16) -> bool {
+		let area = self.last_tree_area.get();
+		if column < area.x
+			|| column >= area.x.saturating_add(area.width)
+			|| row <= area.y
+			|| row
+				>= area
+					.y
+					.saturating_add(area.height)
+					.saturating_sub(1)
+		{
+			return false;
+		}
+
+		let visual_row = usize::from(row.saturating_sub(area.y + 1));
+		let visual_index = self.scroll.get_top() + visual_row;
+		if !self.tree.select_visual_index(visual_index) {
+			return false;
+		}
+
+		if self.tree.activate_selection() {
+			self.selection_changed();
+		}
+
+		true
+	}
+
 	fn draw_tree(&self, f: &mut Frame, area: Rect) -> Result<()> {
+		self.last_tree_area.set(area);
+
 		let tree_height = usize::from(area.height.saturating_sub(2));
 		let tree_width = usize::from(area.width);
 
@@ -473,6 +504,16 @@ impl Component for RevisionFilesComponent {
 		event: &crossterm::event::Event,
 	) -> Result<EventState> {
 		if !self.is_visible() {
+			return Ok(EventState::NotConsumed);
+		}
+
+		if let Event::Mouse(mouse) = event {
+			if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+				&& matches!(self.focus, Focus::Tree)
+				&& self.click_tree(mouse.column, mouse.row)
+			{
+				return Ok(EventState::Consumed);
+			}
 			return Ok(EventState::NotConsumed);
 		}
 

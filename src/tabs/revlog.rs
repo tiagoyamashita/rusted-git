@@ -454,6 +454,9 @@ impl Component for Revlog {
 			let event_used = self.list.event(ev)?;
 
 			if event_used.is_consumed() {
+				if self.list.take_activate_request() {
+					self.commit_details.toggle_visible()?;
+				}
 				self.update()?;
 				return Ok(EventState::Consumed);
 			} else if let Event::Key(k) = ev {

@@ -103,6 +103,12 @@ pub fn tab_create_pr(key_config: &SharedKeyConfig) -> String {
 		key_config.get_hint(key_config.keys.tab_create_pr)
 	)
 }
+pub fn tab_gitignore(key_config: &SharedKeyConfig) -> String {
+	format!(
+		".gitignore [{}]",
+		key_config.get_hint(key_config.keys.tab_gitignore)
+	)
+}
 pub fn tab_divider(_key_config: &SharedKeyConfig) -> String {
 	" | ".to_string()
 }
@@ -1376,6 +1382,18 @@ pub mod commands {
 			),
 			"opens stash name input popup",
 			CMD_GROUP_STASHING,
+		)
+	}
+	pub fn gitignore_save(
+		key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			format!(
+				"Save [{}]",
+				key_config.get_hint(key_config.keys.gitignore_save),
+			),
+			"save the repository .gitignore file",
+			CMD_GROUP_GENERAL,
 		)
 	}
 	pub fn stashing_toggle_indexed(

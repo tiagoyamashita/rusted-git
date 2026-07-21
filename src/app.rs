@@ -29,8 +29,8 @@ use crate::{
 	setup_popups,
 	strings::{self, ellipsis_trim_start, order},
 	tabs::{
-		CreatePrTab, FilesTab, RefGraph, Revlog, StashList, Stashing,
-		Status,
+		CreatePrTab, FilesTab, GitignoreTab, RefGraph, Revlog,
+		StashList, Stashing, Status,
 	},
 	try_or_popup,
 	ui::style::{SharedTheme, Theme},
@@ -117,6 +117,7 @@ pub struct App {
 	stashlist_tab: StashList,
 	graph_tab: RefGraph,
 	create_pr_tab: CreatePrTab,
+	gitignore_tab: GitignoreTab,
 	files_tab: FilesTab,
 	queue: Queue,
 	theme: SharedTheme,
@@ -247,6 +248,7 @@ impl App {
 			stashlist_tab: StashList::new(&env),
 			graph_tab: RefGraph::new(&env),
 			create_pr_tab: CreatePrTab::new(&env),
+			gitignore_tab: GitignoreTab::new(&env),
 			files_tab: FilesTab::new(&env, select_file),
 			checkout_option_popup: CheckoutOptionPopup::new(&env),
 			goto_line_popup: GotoLinePopup::new(&env),
@@ -308,6 +310,7 @@ impl App {
 				4 => self.stashlist_tab.draw(f, chunks_main[1])?,
 				5 => self.graph_tab.draw(f, chunks_main[1])?,
 				6 => self.create_pr_tab.draw(f, chunks_main[1])?,
+				7 => self.gitignore_tab.draw(f, chunks_main[1])?,
 				_ => bail!("unknown tab"),
 			}
 		}
@@ -366,6 +369,9 @@ impl App {
 				) || key_match(
 					k,
 					self.key_config.keys.tab_create_pr,
+				) || key_match(
+					k,
+					self.key_config.keys.tab_gitignore,
 				) {
 					self.switch_tab(k)?;
 					NeedsUpdate::COMMANDS
@@ -562,7 +568,8 @@ impl App {
 			stashing_tab,
 			stashlist_tab,
 			graph_tab,
-			create_pr_tab
+			create_pr_tab,
+			gitignore_tab
 		]
 	);
 
@@ -635,6 +642,7 @@ impl App {
 			&mut self.stashlist_tab,
 			&mut self.graph_tab,
 			&mut self.create_pr_tab,
+			&mut self.gitignore_tab,
 		]
 	}
 
@@ -664,6 +672,8 @@ impl App {
 			self.switch_to_tab(&AppTabs::Graph)?;
 		} else if key_match(k, self.key_config.keys.tab_create_pr) {
 			self.switch_to_tab(&AppTabs::CreatePr)?;
+		} else if key_match(k, self.key_config.keys.tab_gitignore) {
+			self.switch_to_tab(&AppTabs::Gitignore)?;
 		}
 
 		Ok(())
@@ -694,6 +704,7 @@ impl App {
 			AppTabs::Stashlist => self.set_tab(4)?,
 			AppTabs::Graph => self.set_tab(5)?,
 			AppTabs::CreatePr => self.set_tab(6)?,
+			AppTabs::Gitignore => self.set_tab(7)?,
 		}
 		Ok(())
 	}
@@ -1197,7 +1208,7 @@ impl App {
 	}
 
 	//TODO: make this dynamic
-	fn tab_labels(&self) -> [String; 7] {
+	fn tab_labels(&self) -> [String; 8] {
 		[
 			strings::tab_status(&self.key_config),
 			strings::tab_log(&self.key_config),
@@ -1206,6 +1217,7 @@ impl App {
 			strings::tab_stashes(&self.key_config),
 			strings::tab_graph(&self.key_config),
 			strings::tab_create_pr(&self.key_config),
+			strings::tab_gitignore(&self.key_config),
 		]
 	}
 

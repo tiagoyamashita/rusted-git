@@ -9,6 +9,7 @@ ui:
 - [`StashList`]: Managing all stashes
 - [`RefGraph`]: SourceTree-style branch/tag commit graph
 - [`CreatePrTab`]: Create a GitHub pull request from a branch
+- [`GitignoreTab`]: Edit the repository's root `.gitignore`
 
 Many of the tabs can expand to show more details. This is done via
 Enter or right-arrow. To close again, press ESC.
@@ -16,6 +17,7 @@ Enter or right-arrow. To close again, press ESC.
 
 mod create_pr;
 mod files;
+mod gitignore;
 mod refgraph;
 mod revlog;
 mod stashing;
@@ -24,6 +26,7 @@ mod status;
 
 pub use create_pr::CreatePrTab;
 pub use files::FilesTab;
+pub use gitignore::GitignoreTab;
 pub use refgraph::RefGraph;
 pub use revlog::Revlog;
 pub use stashing::{Stashing, StashingOptions};
