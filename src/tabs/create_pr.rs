@@ -26,10 +26,17 @@ use asyncgit::{
 use crossterm::event::Event;
 use ratatui::{
 	layout::{Constraint, Direction, Layout, Margin, Rect},
+	style::Modifier,
 	text::{Line, Span},
 	widgets::{Block, Borders, List, ListItem, Paragraph},
 	Frame,
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BranchListRow {
+	Header(&'static str),
+	Branch(usize),
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -152,7 +159,8 @@ impl CreatePrTab {
 			});
 
 		local_branches.extend(remote_branches);
-		self.branches = local_branches;
+		self.branches =
+			group_branches_by_merge_status(local_branches);
 		drop(repo);
 		if self.selection >= self.branches.len() {
 			self.selection = self.branches.len().saturating_sub(1);
@@ -509,50 +517,58 @@ impl CreatePrTab {
 
 	fn draw_branches(&self, f: &mut Frame, area: Rect) {
 		let height = area.height.saturating_sub(2) as usize;
-		self.scroll.update(
-			self.selection,
-			self.branches.len(),
-			height,
-		);
+		let rows = branch_list_rows(&self.branches);
+		let visual_selection =
+			selection_visual_row(&rows, self.selection);
+		self.scroll.update(visual_selection, rows.len(), height);
 
-		let items: Vec<ListItem> = self
-			.branches
+		let items: Vec<ListItem> = rows
 			.iter()
-			.enumerate()
 			.skip(self.scroll.get_top())
 			.take(height)
-			.map(|(idx, b)| {
-				let selected = idx == self.selection;
-				let is_head = b.name == self.head_branch;
-				let is_base = b.name == self.base_branch;
-				let kind = if b.is_local() {
-					"[local] "
-				} else {
-					"[remote] "
-				};
-				let merge_status = branch_merge_status(b);
-				let open_pr_status =
-					branch_open_pr_status(b, &self.open_prs);
-				let marker = if is_head && is_base {
-					"*="
-				} else if is_head {
-					"* "
-				} else if is_base {
-					"= "
-				} else {
-					"  "
-				};
-				let style = self.theme.text(
-					true,
-					selected && self.focus == Focus::Branches,
-				);
-				ListItem::new(Line::from(Span::styled(
-					format!(
-						"{marker}{kind}{} {merge_status}{open_pr_status}",
-						b.name,
-					),
-					style,
-				)))
+			.map(|row| match row {
+				BranchListRow::Header(label) => {
+					ListItem::new(Line::from(Span::styled(
+						*label,
+						self.theme
+							.text(false, false)
+							.add_modifier(Modifier::UNDERLINED),
+					)))
+				}
+				BranchListRow::Branch(idx) => {
+					let b = &self.branches[*idx];
+					let selected = *idx == self.selection;
+					let is_head = b.name == self.head_branch;
+					let is_base = b.name == self.base_branch;
+					let kind = if b.is_local() {
+						"[local] "
+					} else {
+						"[remote] "
+					};
+					let merge_status = branch_merge_status(b);
+					let open_pr_status =
+						branch_open_pr_status(b, &self.open_prs);
+					let marker = if is_head && is_base {
+						"*="
+					} else if is_head {
+						"* "
+					} else if is_base {
+						"= "
+					} else {
+						"  "
+					};
+					let style = self.theme.text(
+						true,
+						selected && self.focus == Focus::Branches,
+					);
+					ListItem::new(Line::from(Span::styled(
+						format!(
+							"{marker}{kind}{} {merge_status}{open_pr_status}",
+							b.name,
+						),
+						style,
+					)))
+				}
 			})
 			.collect();
 
@@ -716,6 +732,57 @@ fn default_base_branch(branches: &[BranchInfo]) -> String {
 
 fn remote_branch_name(name: &str) -> &str {
 	name.split_once('/').map_or(name, |(_, branch)| branch)
+}
+
+fn branch_is_merged(branch: &BranchInfo) -> bool {
+	branch.merged_into.is_some()
+}
+
+/// Keep non-merged branches first (including primary / no-main/master),
+/// then already-merged ones, preserving relative order within each group.
+fn group_branches_by_merge_status(
+	branches: Vec<BranchInfo>,
+) -> Vec<BranchInfo> {
+	let (mut non_merged, mut merged): (Vec<_>, Vec<_>) =
+		branches.into_iter().partition(|b| !branch_is_merged(b));
+	non_merged.append(&mut merged);
+	non_merged
+}
+
+fn branch_list_rows(branches: &[BranchInfo]) -> Vec<BranchListRow> {
+	if branches.is_empty() {
+		return Vec::new();
+	}
+
+	let mut rows = Vec::with_capacity(branches.len() + 2);
+	let mut saw_non_merged = false;
+	let mut saw_merged = false;
+
+	for (idx, branch) in branches.iter().enumerate() {
+		if branch_is_merged(branch) {
+			if !saw_merged {
+				rows.push(BranchListRow::Header("Merged"));
+				saw_merged = true;
+			}
+		} else if !saw_non_merged {
+			rows.push(BranchListRow::Header("Non-merged"));
+			saw_non_merged = true;
+		}
+		rows.push(BranchListRow::Branch(idx));
+	}
+
+	rows
+}
+
+fn selection_visual_row(
+	rows: &[BranchListRow],
+	selection: usize,
+) -> usize {
+	rows.iter()
+		.position(|row| {
+			matches!(row, BranchListRow::Branch(idx) if *idx == selection)
+		})
+		.unwrap_or(0)
 }
 
 fn branch_merge_status(branch: &BranchInfo) -> String {
@@ -1002,7 +1069,32 @@ impl Component for CreatePrTab {
 
 #[cfg(test)]
 mod tests {
-	use super::remote_branch_name;
+	use super::{
+		branch_is_merged, branch_list_rows, branch_merge_status,
+		group_branches_by_merge_status, remote_branch_name,
+		selection_visual_row, BranchListRow,
+	};
+	use asyncgit::sync::{
+		branch::RemoteBranch, BranchDetails, BranchInfo, CommitId,
+	};
+
+	fn remote_branch(
+		name: &str,
+		merge_target: Option<&str>,
+		merged_into: Option<&str>,
+	) -> BranchInfo {
+		BranchInfo {
+			name: name.to_string(),
+			reference: format!("refs/remotes/{name}"),
+			top_commit_message: String::new(),
+			top_commit: CommitId::default(),
+			merge_target: merge_target.map(str::to_string),
+			merged_into: merged_into.map(str::to_string),
+			details: BranchDetails::Remote(RemoteBranch {
+				has_tracking: false,
+			}),
+		}
+	}
 
 	#[test]
 	fn remote_branch_name_removes_only_remote_prefix() {
@@ -1012,5 +1104,115 @@ mod tests {
 			"feature/nested"
 		);
 		assert_eq!(remote_branch_name("main"), "main");
+	}
+
+	#[test]
+	fn group_branches_puts_non_merged_before_merged() {
+		let grouped = group_branches_by_merge_status(vec![
+			remote_branch(
+				"origin/done",
+				Some("origin/main"),
+				Some("origin/main"),
+			),
+			remote_branch("origin/main", None, None),
+			remote_branch("origin/wip", Some("origin/main"), None),
+			remote_branch("origin/orphan", None, None),
+		]);
+
+		assert_eq!(
+			grouped
+				.iter()
+				.map(|b| b.name.as_str())
+				.collect::<Vec<_>>(),
+			[
+				"origin/main",
+				"origin/wip",
+				"origin/orphan",
+				"origin/done",
+			]
+		);
+		assert!(!branch_is_merged(&grouped[0]));
+		assert!(!branch_is_merged(&grouped[1]));
+		assert!(!branch_is_merged(&grouped[2]));
+		assert!(branch_is_merged(&grouped[3]));
+	}
+
+	#[test]
+	fn branch_list_rows_insert_section_headers() {
+		let branches = group_branches_by_merge_status(vec![
+			remote_branch(
+				"origin/done",
+				Some("origin/main"),
+				Some("origin/main"),
+			),
+			remote_branch("origin/main", None, None),
+			remote_branch("origin/wip", Some("origin/main"), None),
+		]);
+		let rows = branch_list_rows(&branches);
+
+		assert_eq!(
+			rows,
+			[
+				BranchListRow::Header("Non-merged"),
+				BranchListRow::Branch(0),
+				BranchListRow::Branch(1),
+				BranchListRow::Header("Merged"),
+				BranchListRow::Branch(2),
+			]
+		);
+		assert_eq!(selection_visual_row(&rows, 0), 1);
+		assert_eq!(selection_visual_row(&rows, 2), 4);
+	}
+
+	#[test]
+	fn branch_list_rows_only_merged_section_when_all_merged() {
+		let branches = vec![remote_branch(
+			"origin/done",
+			Some("origin/main"),
+			Some("origin/main"),
+		)];
+		assert_eq!(
+			branch_list_rows(&branches),
+			[
+				BranchListRow::Header("Merged"),
+				BranchListRow::Branch(0),
+			]
+		);
+	}
+
+	#[test]
+	fn branch_merge_status_handles_primary_and_missing_primary() {
+		assert_eq!(
+			branch_merge_status(&remote_branch(
+				"origin/main",
+				None,
+				None
+			)),
+			"[primary]"
+		);
+		assert_eq!(
+			branch_merge_status(&remote_branch(
+				"origin/feature",
+				None,
+				None
+			)),
+			"[no main/master]"
+		);
+		assert_eq!(
+			branch_merge_status(&remote_branch(
+				"origin/feature",
+				Some("origin/main"),
+				None
+			)),
+			"[not merged → main]"
+		);
+		assert_eq!(
+			branch_merge_status(&remote_branch(
+				"origin/feature",
+				Some("origin/main"),
+				Some("origin/main")
+			)),
+			"[merged → main]"
+		);
 	}
 }
