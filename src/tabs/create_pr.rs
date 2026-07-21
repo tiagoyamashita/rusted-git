@@ -366,7 +366,7 @@ impl CreatePrTab {
 		f.render_widget(summary, chunks[0]);
 
 		let help = Paragraph::new(Line::from(Span::styled(
-			"Enter=set head  |  b=set base  |  Tab=focus  |  c=create",
+			"Enter=set head  |  b=set base  |  Tab=focus  |  Esc=branches  |  c=create",
 			self.theme.text(false, false),
 		)));
 		f.render_widget(help, chunks[1]);
@@ -459,18 +459,18 @@ impl Component for CreatePrTab {
 			return Ok(EventState::NotConsumed);
 		}
 
-		if self.focus == Focus::Title
-			&& self.title.event(ev)?.is_consumed()
-		{
-			return Ok(EventState::Consumed);
-		}
-		if self.focus == Focus::Body
-			&& self.body.event(ev)?.is_consumed()
-		{
-			return Ok(EventState::Consumed);
-		}
-
+		// Handle navigation keys before embedded text inputs.
+		// TextInputComponent treats Esc as "close popup" (hides itself)
+		// and Tab as insert-tab — both break this tab's UX.
 		if let Event::Key(k) = ev {
+			if key_match(k, self.key_config.keys.exit_popup) {
+				if self.focus != Focus::Branches {
+					self.focus = Focus::Branches;
+					self.apply_focus();
+					return Ok(EventState::Consumed);
+				}
+				return Ok(EventState::NotConsumed);
+			}
 			if key_match(k, self.key_config.keys.tab_toggle) {
 				self.cycle_focus(false);
 				return Ok(EventState::Consumed);
@@ -493,7 +493,20 @@ impl Component for CreatePrTab {
 				self.apply_focus();
 				return Ok(EventState::Consumed);
 			}
+		}
 
+		if self.focus == Focus::Title
+			&& self.title.event(ev)?.is_consumed()
+		{
+			return Ok(EventState::Consumed);
+		}
+		if self.focus == Focus::Body
+			&& self.body.event(ev)?.is_consumed()
+		{
+			return Ok(EventState::Consumed);
+		}
+
+		if let Event::Key(k) = ev {
 			if self.focus == Focus::Branches {
 				if key_match(k, self.key_config.keys.move_up) {
 					self.move_selection(ScrollType::Up);
