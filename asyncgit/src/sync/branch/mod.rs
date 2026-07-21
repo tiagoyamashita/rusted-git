@@ -91,8 +91,8 @@ pub struct BranchInfo {
 	pub top_commit_message: String,
 	///
 	pub top_commit: CommitId,
-	/// Whether this local branch's tip is contained in `main` or `master`.
-	pub is_merged_to_primary: bool,
+	/// Primary branch (`main` or `master`) containing this branch's tip.
+	pub merged_into: Option<String>,
 	///
 	pub details: BranchDetails,
 }
@@ -131,18 +131,15 @@ pub fn get_branches_info(
 	scope_time!("get_branches_info");
 
 	let repo = repo(repo_path)?;
-	let primary_tips: Vec<_> = if local {
-		["main", "master"]
-			.into_iter()
-			.filter_map(|name| {
-				repo.find_branch(name, BranchType::Local)
-					.ok()
-					.and_then(|branch| branch.get().target())
-					.map(|id| (name, id))
-			})
-			.collect()
+	let primary_tip = if local {
+		["main", "master"].into_iter().find_map(|name| {
+			repo.find_branch(name, BranchType::Local)
+				.ok()
+				.and_then(|branch| branch.get().target())
+				.map(|id| (name, id))
+		})
 	} else {
-		Vec::new()
+		None
 	};
 
 	let (filter, remotes_with_tracking) = if local {
@@ -183,16 +180,17 @@ pub fn get_branches_info(
 			let name_bytes = branch.name_bytes()?;
 			let name = bytes2string(name_bytes)?;
 			let top_commit_id = top_commit.id();
-			let is_merged_to_primary = primary_tips.iter().any(
+			let merged_into = primary_tip.and_then(
 				|(primary_name, primary_tip)| {
-					name != *primary_name
-						&& (*primary_tip == top_commit_id
+					(name != primary_name
+						&& (primary_tip == top_commit_id
 							|| repo
 								.graph_descendant_of(
-									*primary_tip,
+									primary_tip,
 									top_commit_id,
 								)
-								.unwrap_or(false))
+								.unwrap_or(false)))
+					.then(|| primary_name.to_string())
 				},
 			);
 
@@ -224,7 +222,7 @@ pub fn get_branches_info(
 					top_commit.summary_bytes().unwrap_or_default(),
 				)?,
 				top_commit: top_commit_id.into(),
-				is_merged_to_primary,
+				merged_into,
 				details,
 			})
 		})
@@ -634,9 +632,9 @@ mod tests_branches {
 			.find(|branch| branch.name == "master")
 			.unwrap();
 
-		assert!(merged.is_merged_to_primary);
-		assert!(!unmerged.is_merged_to_primary);
-		assert!(!master.is_merged_to_primary);
+		assert_eq!(merged.merged_into.as_deref(), Some("master"));
+		assert_eq!(unmerged.merged_into, None);
+		assert_eq!(master.merged_into, None);
 	}
 
 	fn clone_branch_commit_push(target: &str, branch_name: &str) {

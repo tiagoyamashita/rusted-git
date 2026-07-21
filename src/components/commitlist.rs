@@ -638,13 +638,18 @@ impl CommitList {
 								}
 								_ => "",
 							};
-							let merged = if self.graph_rows.is_some()
-								&& local_branch.is_merged_to_primary
-							{
-								" ✓"
-							} else {
-								""
-							};
+							let merged = self
+								.graph_rows
+								.as_ref()
+								.and(
+									local_branch
+										.merged_into
+										.as_deref(),
+								)
+								.map_or_else(
+									String::new,
+									|primary| format!(" → {primary}"),
+								);
 							format!(
 								"{{{head}{0}{merged}}}",
 								local_branch.name,
