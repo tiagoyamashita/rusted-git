@@ -188,5 +188,14 @@
   "186": "bug_report.md",
   "187": "feature_request.md",
   "188": "PULL_REQUEST_TEMPLATE.md",
-  "189": "LICENSE.md"
+  "189": "LICENSE.md",
+  "190": "clipboard.rs",
+  "191": "FileRevOpen",
+  "192": "ProgressPercent",
+  "193": ".event",
+  "194": "stateful_paragraph.rs",
+  "195": "ShowUntrackedFilesConfig",
+  "196": "asyncgit/src/lib.rs",
+  "197": ".draw_revlog",
+  "198": "[0.16.2] - 2021-07-10"
 }

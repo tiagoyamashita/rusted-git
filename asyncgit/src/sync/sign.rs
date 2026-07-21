@@ -725,7 +725,7 @@ mod tests {
 			"openssl is required for the x509 e2e test"
 		);
 
-		let email = "gitui-x509-test@example.com";
+		let email = "rusted-git-x509-test@example.com";
 		let gnupg = tempfile::tempdir()?;
 		let home = gnupg.path();
 		std::fs::set_permissions(
@@ -787,7 +787,7 @@ mod tests {
 				"-days",
 				"3650",
 				"-subj",
-				&format!("/CN=gitui test/emailAddress={email}"),
+				&format!("/CN=rusted-git test/emailAddress={email}"),
 			],
 		);
 		// gpgsm's PKCS#12 reader accepts different ciphers across versions, so
@@ -825,7 +825,7 @@ mod tests {
 			SignBuilder::from_gitconfig(&repo, &repo.config()?)?;
 		assert_eq!("gpgsm", signer.program());
 
-		let sig = git2::Signature::now("gitui test", email)?;
+		let sig = git2::Signature::now("rusted-git test", email)?;
 		let tree = {
 			let mut index = repo.index()?;
 			let tree_id = index.write_tree()?;
@@ -895,7 +895,7 @@ mod tests {
 			"gpg is required for the openpgp e2e test"
 		);
 
-		let email = "gitui-openpgp-test@example.com";
+		let email = "rusted-git-openpgp-test@example.com";
 		let gnupg = tempfile::tempdir()?;
 		let home = gnupg.path();
 		std::fs::set_permissions(
@@ -928,7 +928,7 @@ mod tests {
 		std::fs::write(
 			&params,
 			format!(
-				"%no-protection\nKey-Type: RSA\nKey-Length: 2048\nSubkey-Type: RSA\nSubkey-Length: 2048\nName-Real: gitui test\nName-Email: {email}\nExpire-Date: 0\n%commit\n"
+				"%no-protection\nKey-Type: RSA\nKey-Length: 2048\nSubkey-Type: RSA\nSubkey-Length: 2048\nName-Real: rusted-git test\nName-Email: {email}\nExpire-Date: 0\n%commit\n"
 			),
 		)?;
 		run(
@@ -946,7 +946,7 @@ mod tests {
 			SignBuilder::from_gitconfig(&repo, &repo.config()?)?;
 		assert_eq!("gpg", signer.program());
 
-		let sig = git2::Signature::now("gitui test", email)?;
+		let sig = git2::Signature::now("rusted-git test", email)?;
 		let tree = {
 			let mut index = repo.index()?;
 			let tree_id = index.write_tree()?;
@@ -1032,7 +1032,7 @@ mod tests {
 			out
 		};
 
-		let email = "gitui-ssh-test@example.com";
+		let email = "rusted-git-ssh-test@example.com";
 		let dir = tempfile::tempdir()?;
 		let key_path = dir.path().join("id_ed25519");
 		let pub_path = dir.path().join("id_ed25519.pub");
@@ -1066,7 +1066,7 @@ mod tests {
 			SignBuilder::from_gitconfig(&repo, &repo.config()?)?;
 		assert_eq!("ssh-keygen", signer.program());
 
-		let sig = git2::Signature::now("gitui test", email)?;
+		let sig = git2::Signature::now("rusted-git test", email)?;
 		let tree = {
 			let mut index = repo.index()?;
 			let tree_id = index.write_tree()?;

@@ -967,6 +967,7 @@ mod tests {
 				key_config: SharedKeyConfig::default(),
 				scroll_state: (Instant::now(), 0.0),
 				current_size: Cell::default(),
+				graph_rows: None,
 				repo: RepoPathRef::new(sync::RepoPath::Path(
 					std::path::PathBuf::default(),
 				)),

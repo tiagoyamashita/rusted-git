@@ -1,11 +1,11 @@
 # Contributing
 
 We’re glad you found this document that is intended to make contributing to
-GitUI as easy as possible!
+rusted-git as easy as possible!
 
-## Building GitUI
+## Building rusted-git
 
-In order to build GitUI on your machine, follow the instructions in the
+In order to build rusted-git on your machine, follow the instructions in the
 [“Build” section](./README.md#build).
 
 ## Getting help
@@ -23,4 +23,4 @@ too much context so that people not familiar with the codebase yet can still
 make a contribution.
 
 [discord-server]: https://discord.gg/rZv4uxSQx3
-[good-first-issues]: https://github.com/gitui-org/gitui/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22
+[good-first-issues]: https://github.com/tiagoyamashita/rusted-git/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22

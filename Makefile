@@ -19,32 +19,32 @@ build-release:
 	cargo build --release --locked
 
 release-mac: build-release
-	strip target/release/gitui
-	otool -L target/release/gitui
-	ls -lisah target/release/gitui
+	strip target/release/rusted-git
+	otool -L target/release/rusted-git
+	ls -lisah target/release/rusted-git
 	mkdir -p release
-	tar -C ./target/release/ -czvf ./release/gitui-mac.tar.gz ./gitui
-	ls -lisah ./release/gitui-mac.tar.gz
+	tar -C ./target/release/ -czvf ./release/rusted-git-mac.tar.gz ./rusted-git
+	ls -lisah ./release/rusted-git-mac.tar.gz
 
 release-mac-x86: build-apple-x86-release
-	strip target/x86_64-apple-darwin/release/gitui
-	otool -L target/x86_64-apple-darwin/release/gitui
-	ls -lisah target/x86_64-apple-darwin/release/gitui
+	strip target/x86_64-apple-darwin/release/rusted-git
+	otool -L target/x86_64-apple-darwin/release/rusted-git
+	ls -lisah target/x86_64-apple-darwin/release/rusted-git
 	mkdir -p release
-	tar -C ./target/x86_64-apple-darwin/release/ -czvf ./release/gitui-mac-x86.tar.gz ./gitui
-	ls -lisah ./release/gitui-mac-x86.tar.gz
+	tar -C ./target/x86_64-apple-darwin/release/ -czvf ./release/rusted-git-mac-x86.tar.gz ./rusted-git
+	ls -lisah ./release/rusted-git-mac-x86.tar.gz
 
 release-win: build-release
 	mkdir -p release
-	tar -C ./target/release/ -czvf ./release/gitui-win.tar.gz ./gitui.exe
+	tar -C ./target/release/ -czvf ./release/rusted-git-win.tar.gz ./rusted-git.exe
 	cargo install cargo-wix --version 0.3.3 --locked
-	cargo wix -p gitui --no-build --nocapture --output ./release/gitui-win.msi
-	ls -l ./release/gitui-win.msi
+	cargo wix -p rusted-git --no-build --nocapture --output ./release/rusted-git-win.msi
+	ls -l ./release/rusted-git-win.msi
 
 release-linux-musl: build-linux-musl-release
-	strip target/x86_64-unknown-linux-musl/release/gitui
+	strip target/x86_64-unknown-linux-musl/release/rusted-git
 	mkdir -p release
-	tar -C ./target/x86_64-unknown-linux-musl/release/ -czvf ./release/gitui-linux-x86_64.tar.gz ./gitui
+	tar -C ./target/x86_64-unknown-linux-musl/release/ -czvf ./release/rusted-git-linux-x86_64.tar.gz ./rusted-git
 
 build-apple-x86-debug:
 	cargo build --target=x86_64-apple-darwin
@@ -64,7 +64,7 @@ test-linux-musl:
 # aarch64 test binaries are cross-compiled, so CI runs them under qemu via a
 # CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER (see .github/workflows/ci.yml).
 # Exclude test_hook_with_missing_shebang: it needs the kernel's ENOEXEC (so
-# gitui retries the hook via `sh`), which qemu-user doesn't emulate — the exec
+# rusted-git retries the hook via `sh`), which qemu-user doesn't emulate — the exec
 # just exits 127. It passes on real aarch64 hardware.
 test-linux-arm:
 	cargo nextest run --workspace --target=aarch64-unknown-linux-gnu -E 'not test(test_hook_with_missing_shebang)'
@@ -72,13 +72,13 @@ test-linux-arm:
 release-linux-arm: build-linux-arm-release
 	mkdir -p release
 
-	aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/gitui
-	arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/gitui
-	arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/gitui
+	aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/rusted-git
+	arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/rusted-git
+	arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/rusted-git
 
-	tar -C ./target/aarch64-unknown-linux-gnu/release/ -czvf ./release/gitui-linux-aarch64.tar.gz ./gitui
-	tar -C ./target/armv7-unknown-linux-gnueabihf/release/ -czvf ./release/gitui-linux-armv7.tar.gz ./gitui
-	tar -C ./target/arm-unknown-linux-gnueabihf/release/ -czvf ./release/gitui-linux-arm.tar.gz ./gitui
+	tar -C ./target/aarch64-unknown-linux-gnu/release/ -czvf ./release/rusted-git-linux-aarch64.tar.gz ./rusted-git
+	tar -C ./target/armv7-unknown-linux-gnueabihf/release/ -czvf ./release/rusted-git-linux-armv7.tar.gz ./rusted-git
+	tar -C ./target/arm-unknown-linux-gnueabihf/release/ -czvf ./release/rusted-git-linux-arm.tar.gz ./rusted-git
 
 build-linux-arm-debug:
 	cargo build --target=aarch64-unknown-linux-gnu

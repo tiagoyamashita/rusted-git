@@ -105,11 +105,11 @@ pub fn process_cmdline() -> Result<CliArgs> {
 fn app() -> ClapApp {
 	ClapApp::new(crate_name!())
 		.author(crate_authors!())
-		.version(env!("GITUI_BUILD_NAME"))
+		.version(env!("RUSTED_GIT_BUILD_NAME"))
 		.about(crate_description!())
 		.help_template(
 			"\
-{before-help}gitui {version}
+{before-help}rusted-git {version}
 {author}
 {about}
 
@@ -157,7 +157,7 @@ fn app() -> ClapApp {
             .value_name("LOG_FILE"))
 		.arg(
 			Arg::new(WATCHER_FLAG_ID)
-				.help("Use notify-based file system watcher instead of tick-based update. This is more performant, but can cause issues on some platforms. See https://github.com/gitui-org/gitui/blob/master/FAQ.md#watcher for details.")
+				.help("Use notify-based file system watcher instead of tick-based update. This is more performant, but can cause issues on some platforms. See https://github.com/tiagoyamashita/rusted-git/blob/master/FAQ.md#watcher for details.")
 				.long("watcher")
 				.action(clap::ArgAction::SetTrue),
 		)
@@ -197,7 +197,7 @@ fn setup_logging(path_override: Option<PathBuf>) -> Result<()> {
 		path
 	} else {
 		let mut path = get_app_cache_path()?;
-		path.push("gitui.log");
+		path.push("rusted-git.log");
 		path
 	};
 
@@ -216,7 +216,7 @@ fn get_app_cache_path() -> Result<PathBuf> {
 	let mut path = dirs::cache_dir()
 		.ok_or_else(|| anyhow!("failed to find os cache dir."))?;
 
-	path.push("gitui");
+	path.push("rusted-git");
 	fs::create_dir_all(&path).with_context(|| {
 		format!(
 			"failed to create cache directory: {}",
@@ -234,7 +234,7 @@ pub fn get_app_config_path() -> Result<PathBuf> {
 	}
 	.ok_or_else(|| anyhow!("failed to find os config dir."))?;
 
-	path.push("gitui");
+	path.push("rusted-git");
 	Ok(path)
 }
 

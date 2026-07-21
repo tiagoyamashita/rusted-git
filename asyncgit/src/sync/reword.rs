@@ -231,7 +231,7 @@ fn reword_signed(
 
 	// move the branch to the rewritten tip and refresh the worktree.
 	let mut branch_ref = repo.find_reference(&cur_branch_ref)?;
-	branch_ref.set_target(last_new_oid, "gitui: reword (signed)")?;
+	branch_ref.set_target(last_new_oid, "rusted-git: reword (signed)")?;
 	repo.set_head(&cur_branch_ref)?;
 	repo.checkout_head(None)?;
 
@@ -294,7 +294,7 @@ mod tests {
 		let repo_path: &RepoPath =
 			&root.as_os_str().to_str().unwrap().into();
 
-		// fake gpg program: drain stdin, emit a fixed PGP block on stdout and the GNUPG status line gitui's signer expects on stderr.
+		// fake gpg program: drain stdin, emit a fixed PGP block on stdout and the GNUPG status line rusted-git's signer expects on stderr.
 		let script_path = td.path().join("fake_gpg.sh");
 		let script = "#!/bin/sh\n\
 			cat > /dev/null\n\

@@ -78,25 +78,25 @@ jobs:
       - name: Binary Size (unix)
         if: matrix.os != 'windows-latest'
         run: |
-          ls -l ./target/release/gitui
+          ls -l ./target/release/rusted-git
 
       - name: Binary Size (win)
         if: matrix.os == 'windows-latest'
         run: |
-          ls -l ./target/release/gitui.exe
+          ls -l ./target/release/rusted-git.exe
 
       - name: Binary dependencies (mac)
         if: matrix.os == 'macos-latest'
         run: |
-          otool -L ./target/release/gitui
+          otool -L ./target/release/rusted-git
 
       - name: Build MSI (windows)
         if: matrix.os == 'windows-latest'
         run: |
           cargo install cargo-wix --version 0.3.3 --locked
           cargo wix --version
-          cargo wix -p gitui --no-build --nocapture --output ./target/wix/gitui-win.msi
-          ls -l ./target/wix/gitui-win.msi
+          cargo wix -p rusted-git --no-build --nocapture --output ./target/wix/rusted-git-win.msi
+          ls -l ./target/wix/rusted-git-win.msi
 
   build-linux-musl:
     runs-on: ubuntu-latest
@@ -143,12 +143,12 @@ jobs:
       - name: Build Debug
         run: |
           make build-linux-musl-debug
-          ./target/x86_64-unknown-linux-musl/debug/gitui --version
+          ./target/x86_64-unknown-linux-musl/debug/rusted-git --version
       - name: Build Release
         run: |
           make build-linux-musl-release
-          ./target/x86_64-unknown-linux-musl/release/gitui --version
-          ls -l ./target/x86_64-unknown-linux-musl/release/gitui
+          ./target/x86_64-unknown-linux-musl/release/rusted-git --version
+          ls -l ./target/x86_64-unknown-linux-musl/release/rusted-git
       - name: Test
         run: |
           make test-linux-musl
@@ -222,7 +222,7 @@ jobs:
       - name: Build Release
         run: |
           make build-linux-arm-release
-          ls -l ./target/aarch64-unknown-linux-gnu/release/gitui || ls -l ./target/armv7-unknown-linux-gnueabihf/release/gitui || ls -l ./target/arm-unknown-linux-gnueabihf/release/gitui
+          ls -l ./target/aarch64-unknown-linux-gnu/release/rusted-git || ls -l ./target/armv7-unknown-linux-gnueabihf/release/rusted-git || ls -l ./target/arm-unknown-linux-gnueabihf/release/rusted-git
 
   build-apple-x86:
     runs-on: macos-latest
@@ -261,7 +261,7 @@ jobs:
       - name: Build Release
         run: |
           make build-apple-x86-release
-          ls -l ./target/x86_64-apple-darwin/release/gitui
+          ls -l ./target/x86_64-apple-darwin/release/rusted-git
 
   linting:
     name: Lints
@@ -351,5 +351,5 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Let Homebrew build gitui from source
-        run: brew install --build-from-source gitui
+      - name: Let Homebrew build rusted-git from source
+        run: brew install --build-from-source rusted-git

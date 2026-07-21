@@ -1,16 +1,16 @@
-# Graph Report - rusted-git  (2026-07-20)
+# Graph Report - workspace  (2026-07-21)
 
 ## Corpus Check
-- 192 files · ~1,437,260 words
+- 192 files · ~1,437,262 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4235 nodes · 10215 edges · 190 communities (179 shown, 11 thin omitted)
+- 4235 nodes · 10214 edges · 199 communities (183 shown, 16 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 707 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b5f79c28`
+- Built from commit: `dbbafaff`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -199,6 +199,15 @@
 - README.md
 - README.md
 - README.md
+- clipboard.rs
+- FileRevOpen
+- ProgressPercent
+- .event
+- stateful_paragraph.rs
+- ShowUntrackedFilesConfig
+- asyncgit/src/lib.rs
+- .draw_revlog
+- [0.16.2] - 2021-07-10
 
 ## God Nodes (most connected - your core abstractions)
 1. `RepoPath` - 187 edges
@@ -213,8 +222,8 @@
 10. `EventState` - 58 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `gitui_starts()` --calls--> `repo_init_suffix()`  [INFERRED]
-  src/gitui.rs → git2-testing/src/lib.rs
+- `rusted_git_starts()` --calls--> `repo_init_suffix()`  [INFERRED]
+  src/rusted_git.rs → git2-testing/src/lib.rs
 - `AsyncSyntaxJob` --implements--> `AsyncJob`  [EXTRACTED]
   src/ui/syntax_text.rs → asyncgit/src/asyncjob/mod.rs
 - `RevisionFilesComponent` --references--> `AsyncSingleJob`  [EXTRACTED]
@@ -227,7 +236,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (190 total, 11 thin omitted)
+## Communities (199 total, 16 thin omitted)
 
 ### Community 0 - "SharedKeyConfig"
 Cohesion: 0.03
@@ -242,12 +251,12 @@ Cohesion: 0.05
 Nodes (61): String, StatusItem, Index, IndexMut, Output, FileTreeItem, FileTreeItemKind, FileTreeItems (+53 more)
 
 ### Community 3 - "BlameFilePopup"
-Cohesion: 0.06
-Nodes (48): AsyncBlame, BlameParams, LastResult, Request, A, Arc, AtomicUsize, Mutex (+40 more)
+Cohesion: 0.09
+Nodes (27): find_truncate_point(), String, string_width_align(), time_to_string(), AsyncNotification, BlameFileOpen, BlameFilePopup, BlameProcess (+19 more)
 
 ### Community 4 - "mod.rs"
-Cohesion: 0.08
-Nodes (61): AsRef, test_merge_normal(), test_merge_normal_non_ff(), branch_merge_upstream_fastforward(), Result, test_merge_fastforward(), get_commit_msgs(), merge_upstream_rebase() (+53 more)
+Cohesion: 0.11
+Nodes (37): AsRef, commit_merge_with_head(), merge_upstream_commit(), Commit, Option, Repository, Result, test_merge_normal() (+29 more)
 
 ### Community 5 - ".new"
 Cohesion: 0.07
@@ -266,8 +275,8 @@ Cohesion: 0.07
 Nodes (46): assign_lanes(), cid(), draw_cells(), draw_fork_connector(), draw_merge_connector(), ensure_width(), fill_horizontal(), GraphCell (+38 more)
 
 ### Community 9 - "DiffComponent"
-Cohesion: 0.07
-Nodes (20): Direction, Current, diff_component_opens_editor_for_current_file(), DiffComponent, Cell, Event, Frame, Line (+12 more)
+Cohesion: 0.06
+Nodes (24): Direction, Current, diff_component_opens_editor_for_current_file(), DiffComponent, Cell, Event, Frame, Line (+16 more)
 
 ### Community 10 - "Revlog"
 Cohesion: 0.07
@@ -286,32 +295,32 @@ Cohesion: 0.14
 Nodes (13): RemoteListPopup, Cell, Event, Frame, Rect, RepoPathRef, Result, Self (+5 more)
 
 ### Community 14 - "TagListPopup"
-Cohesion: 0.08
-Nodes (27): delete_tag(), get_tags(), get_tags_with_metadata(), Option, Result, Self, String, Tags (+19 more)
+Cohesion: 0.06
+Nodes (38): AsyncRemoteTagsJob, JobState, Arc, Mutex, Notification, Option, Progress, Result (+30 more)
 
 ### Community 15 - "CreatePrTab"
-Cohesion: 0.13
-Nodes (14): CreatePrTab, default_base_branch(), Focus, Event, Frame, Option, Rect, RepoPathRef (+6 more)
+Cohesion: 0.07
+Nodes (24): CreatePrTab, default_base_branch(), Focus, Event, Frame, Option, Rect, RepoPathRef (+16 more)
 
 ### Community 16 - "PushTagsPopup"
 Cohesion: 0.09
-Nodes (22): AsyncPushTags, PushState, PushTagsRequest, Arc, Mutex, Option, Result, Self (+14 more)
+Nodes (23): AsyncPushTags, PushState, PushTagsRequest, Arc, Mutex, Option, Result, Self (+15 more)
 
 ### Community 17 - "mod.rs"
 Cohesion: 0.10
-Nodes (42): branch_compare_upstream(), branch_set_upstream_after_push(), BranchCompare, BranchDetails, BranchInfo, checkout_branch(), checkout_commit(), checkout_remote_branch() (+34 more)
+Nodes (40): branch_compare_upstream(), branch_set_upstream_after_push(), BranchCompare, BranchDetails, BranchInfo, checkout_commit(), checkout_remote_branch(), clone_branch_commit_push() (+32 more)
 
 ### Community 18 - "StatusTreeComponent"
 Cohesion: 0.09
 Nodes (20): FileTreeItemKind, Cell, Event, FileTreeItem, Frame, MoveSelection, Option, Rect (+12 more)
 
 ### Community 19 - "FileRevlogPopup"
-Cohesion: 0.05
-Nodes (33): IntoIter, IntoIterator, emojifi_string(), String, &'a ItemBatch, ItemBatch, IndexSet, Option (+25 more)
+Cohesion: 0.20
+Nodes (8): FileRevlogPopup, Cell, RepoPathRef, Result, SharedKeyConfig, SharedOptions, SharedTheme, TableState
 
 ### Community 20 - "StashList"
-Cohesion: 0.15
-Nodes (9): Event, Frame, Rect, RepoPathRef, Result, Self, SharedKeyConfig, Vec (+1 more)
+Cohesion: 0.13
+Nodes (29): AsyncProgress, ProgressNotification, push_branch(), push_raw(), PushType, Clone, Option, PackBuilderStage (+21 more)
 
 ### Community 21 - "TextInputComponent"
 Cohesion: 0.06
@@ -323,15 +332,15 @@ Nodes (14): BranchListPopup, BranchType, Cell, Event, Frame, Option, Rect, RepoP
 
 ### Community 23 - "App"
 Cohesion: 0.10
-Nodes (20): App, Environment, QuitState, Cell, Event, Frame, NeedsUpdate, Option (+12 more)
+Nodes (19): App, Environment, Cell, Event, Frame, NeedsUpdate, Option, Rect (+11 more)
 
 ### Community 24 - "repo_init_empty"
 Cohesion: 0.13
 Nodes (33): test_empty_repo(), repo_init_empty(), create_signed_commit(), GPGSign, gpgsm_import_p12(), Box, Commit, Option (+25 more)
 
 ### Community 25 - "Theme"
-Cohesion: 0.18
-Nodes (5): Color, Default, String, Style, Theme
+Cohesion: 0.13
+Nodes (10): Color, Default, PathBuf, Result, Self, String, Style, test_smoke() (+2 more)
 
 ### Community 26 - "FileTreeItem"
 Cohesion: 0.10
@@ -339,23 +348,23 @@ Nodes (15): FileTreeItem, FileTreeItemKind, PathCollapsed, Eq, Option, Ord, Orde
 
 ### Community 27 - "CommitPopup"
 Cohesion: 0.07
-Nodes (24): OsStr, CommitPopup, CommitResult, Mode, Event, Frame, Option, Rect (+16 more)
+Nodes (24): CommitPopup, CommitResult, Mode, Event, Frame, Option, Rect, RepoPathRef (+16 more)
 
 ### Community 28 - "ResetPopup"
 Cohesion: 0.09
-Nodes (20): BranchName, Option, RepoPathRef, Result, Self, String, Head, ResetPopup (+12 more)
+Nodes (19): BranchName, Option, RepoPathRef, Result, Self, String, ResetPopup, Event (+11 more)
 
 ### Community 29 - "logwalker.rs"
-Cohesion: 0.11
-Nodes (25): LogWalker, LogWalker<'a>, LogWalkerWithoutFilter, LogWalkerWithoutFilter<'a>, BinaryHeap, Commit, Eq, HashSet (+17 more)
+Cohesion: 0.13
+Nodes (16): LogWalker, LogWalker<'a>, BinaryHeap, Commit, Eq, HashSet, Option, Ord (+8 more)
 
 ### Community 30 - "stash.rs"
 Cohesion: 0.21
 Nodes (20): get_stash_index(), get_stashes(), Option, Repository, Result, Vec, stash_apply(), stash_drop() (+12 more)
 
 ### Community 31 - "tree.rs"
-Cohesion: 0.09
-Nodes (29): path_cmp(), Ordering, Path, PathBuf, Repository, Result, String, Tree (+21 more)
+Cohesion: 0.05
+Nodes (48): path_cmp(), Ordering, Path, PathBuf, Repository, Result, String, Tree (+40 more)
 
 ### Community 32 - "LogSearchPopupPopup"
 Cohesion: 0.14
@@ -371,11 +380,11 @@ Nodes (18): DetailsComponent, get_wrapped_lines(), Cell, CommitTags, Cow, Event,
 
 ### Community 35 - "RepoPath"
 Cohesion: 0.09
-Nodes (34): commit_merge_with_head(), merge_upstream_commit(), Commit, Option, Repository, Result, commit_revert(), revert_commit() (+26 more)
+Nodes (37): commit_revert(), revert_commit(), revert_head(), Result, abort_pending_rebase(), abort_pending_state(), continue_pending_rebase(), merge_branch() (+29 more)
 
 ### Community 36 - "AsyncGitNotification"
-Cohesion: 0.08
-Nodes (33): AsyncGitNotification, hash(), T, AsyncLog, AsyncLogResult, FetchStatus, Arc, AtomicBool (+25 more)
+Cohesion: 0.19
+Nodes (16): AsyncGitNotification, AsyncLog, AsyncLogResult, FetchStatus, Arc, AtomicBool, Duration, Mutex (+8 more)
 
 ### Community 37 - "repo"
 Cohesion: 0.17
@@ -394,35 +403,35 @@ Cohesion: 0.11
 Nodes (12): ChangesComponent, Event, FileTreeItem, Frame, Option, Rect, RepoPathRef, Result (+4 more)
 
 ### Community 41 - "RevisionFilesComponent"
-Cohesion: 0.05
-Nodes (43): Direction, FileTree, MoveSelection, BTreeSet, Cell, FileTreeItems, Item, Iterator (+35 more)
+Cohesion: 0.09
+Nodes (23): Direction, FileTree, MoveSelection, BTreeSet, Cell, FileTreeItems, Item, Iterator (+15 more)
 
 ### Community 42 - "hooks.rs"
 Cohesion: 0.17
 Nodes (28): advertised_remote_refs(), create_hook_in_path(), get_remote_ref_for_push(), HookResult, hooks_commit_msg(), hooks_post_commit(), hooks_pre_commit(), hooks_pre_push() (+20 more)
 
 ### Community 43 - "PullPopup"
-Cohesion: 0.09
-Nodes (22): AsyncPull, FetchRequest, FetchState, Arc, Mutex, Option, Result, Self (+14 more)
+Cohesion: 0.27
+Nodes (10): AsyncPull, FetchRequest, FetchState, Arc, Mutex, Option, Result, Self (+2 more)
 
 ### Community 44 - "Changelog"
 Cohesion: 0.09
-Nodes (22): [0.10.1] - 2020-09-01, [0.16.2] - 2021-07-10, [0.24.1] - 2023-08-30, [0.24.2] - 2023-09-03, [0.24.3] - 2023-09-09, [0.25.1] - 2024-02-23, [0.2.3] - 2020-05-12, [0.2.6] - 2020-05-18 (+14 more)
+Nodes (22): [0.10.0] - 2020-08-29, [0.10.1] - 2020-09-01, [0.24.1] - 2023-08-30, [0.24.2] - 2023-09-03, [0.24.3] - 2023-09-09, [0.25.1] - 2024-02-23, [0.2.3] - 2020-05-12, [0.2.6] - 2020-05-18 (+14 more)
 
 ### Community 45 - "EventState"
-Cohesion: 0.09
-Nodes (22): command_pump(), Component, Direction, event_pump(), EventState, Event, From, Result (+14 more)
+Cohesion: 0.07
+Nodes (23): InspectCommitOpen, InspectCommitPopup, CommitTags, Event, Frame, Option, Rect, Result (+15 more)
 
 ### Community 46 - "stage_add_file"
-Cohesion: 0.16
-Nodes (30): test_blame_windows_path_dividers(), amend(), commit(), commit_message_prettify(), count_commits(), Error, Option, Repository (+22 more)
+Cohesion: 0.21
+Nodes (22): amend(), commit(), commit_message_prettify(), count_commits(), Error, Option, Repository, Result (+14 more)
 
 ### Community 47 - "SyntaxTextComponent"
 Cohesion: 0.12
 Nodes (15): Either, Cell, Event, Frame, MoveSelection, Option, Rect, RepoPathRef (+7 more)
 
 ### Community 48 - "Options"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (10): Options, OptionsData, Option, PathBuf, RepoPathRef, Result, Self, SharedOptions (+2 more)
 
 ### Community 49 - "CheckoutOptionPopup"
@@ -434,8 +443,8 @@ Cohesion: 0.27
 Nodes (14): debug_cmd(), debug_cmd_print(), String, reset_repo(), reset_stage(), reset_workdir(), ResetType, Result (+6 more)
 
 ### Community 51 - "utils.rs"
-Cohesion: 0.16
-Nodes (25): get_head(), get_head_refname(), get_head_repo(), get_head_tuple(), read_file(), repo_dir(), repo_open_error(), repo_read_file() (+17 more)
+Cohesion: 0.15
+Nodes (27): bytes2string(), get_head(), get_head_refname(), get_head_repo(), get_head_tuple(), Head, read_file(), repo_dir() (+19 more)
 
 ### Community 52 - "HookPaths"
 Cohesion: 0.16
@@ -462,8 +471,8 @@ Cohesion: 0.13
 Nodes (16): Condvar, Input, InputEvent, InputState, Arc, AtomicBool, Duration, Event (+8 more)
 
 ### Community 58 - "reflow.rs"
-Cohesion: 0.05
-Nodes (50): Alignment, Iter, Composer, line_composer_char_plus_lots_of_spaces(), line_composer_double_width_chars(), line_composer_leading_whitespace_removal(), line_composer_long_sentence(), line_composer_long_word() (+42 more)
+Cohesion: 0.10
+Nodes (33): Composer, line_composer_char_plus_lots_of_spaces(), line_composer_double_width_chars(), line_composer_leading_whitespace_removal(), line_composer_long_sentence(), line_composer_long_word(), line_composer_lots_of_spaces(), line_composer_max_line_width_of_1() (+25 more)
 
 ### Community 59 - "AsyncDiff"
 Cohesion: 0.18
@@ -474,20 +483,20 @@ Cohesion: 0.11
 Nodes (14): CompareDetailsComponent, Event, Frame, Line, Option, Rect, RepoPathRef, Result (+6 more)
 
 ### Community 61 - "main.rs"
-Cohesion: 0.18
-Nodes (21): AsyncAppNotification, AsyncNotification, draw(), ensure_valid_path(), main(), QueueEvent, B, Error (+13 more)
+Cohesion: 0.17
+Nodes (21): QuitState, AsyncAppNotification, draw(), ensure_valid_path(), main(), QueueEvent, B, Error (+13 more)
 
 ### Community 62 - "CommitDetailsComponent"
 Cohesion: 0.15
 Nodes (10): CommitDetailsComponent, CommitTags, Event, Frame, Option, Rect, Result, Self (+2 more)
 
 ### Community 63 - "RevisionFilesPopup"
-Cohesion: 0.14
-Nodes (11): FileTreeOpen, RevisionFilesPopup, Event, Frame, Option, Path, Rect, Result (+3 more)
+Cohesion: 0.15
+Nodes (18): tree_nav(), key_match(), KeyEvent, KeysList, Default, From, KeyCode, KeyModifiers (+10 more)
 
 ### Community 64 - "FilesTab"
-Cohesion: 0.18
-Nodes (7): FilesTab, Event, Frame, Path, Rect, RepoPathRef, Result
+Cohesion: 0.19
+Nodes (15): AsyncBlame, BlameParams, LastResult, Request, A, Arc, AtomicUsize, Mutex (+7 more)
 
 ### Community 65 - "AsyncStatus"
 Cohesion: 0.18
@@ -506,24 +515,24 @@ Cohesion: 0.23
 Nodes (12): AsyncCreatePrJob, create_pull_request(), CreatePrRequest, JobState, Arc, Mutex, Notification, Option (+4 more)
 
 ### Community 69 - "FetchPopup"
-Cohesion: 0.08
-Nodes (19): CredComponent, Event, Frame, Rect, Result, Self, SharedKeyConfig, Vec (+11 more)
+Cohesion: 0.05
+Nodes (31): CredComponent, Event, Frame, Rect, Result, Self, SharedKeyConfig, Vec (+23 more)
 
 ### Community 70 - "rebase.rs"
-Cohesion: 0.23
-Nodes (20): AnnotatedCommit, abort_rebase(), conflict_free_rebase(), continue_rebase(), get_rebase_progress(), parent_ids(), rebase(), rebase_branch() (+12 more)
+Cohesion: 0.22
+Nodes (21): AnnotatedCommit, checkout_branch(), abort_rebase(), conflict_free_rebase(), continue_rebase(), get_rebase_progress(), parent_ids(), rebase() (+13 more)
 
 ### Community 71 - "RunParams"
-Cohesion: 0.12
-Nodes (21): RunParams, AsyncCommitFilterJob, CommitFilterResult, JobState, Arc, AtomicBool, Duration, Instant (+13 more)
+Cohesion: 0.17
+Nodes (16): RunParams, AsyncCommitFilterJob, CommitFilterResult, JobState, Arc, AtomicBool, Duration, Instant (+8 more)
 
 ### Community 72 - "CommandInfo"
-Cohesion: 0.14
-Nodes (10): CommandInfo, Self, Vec, CommandBlocking, T, visibility_blocking(), Vec, Vec (+2 more)
+Cohesion: 0.09
+Nodes (20): CommandInfo, Self, Vec, command_pump(), CommandBlocking, Component, Direction, event_pump() (+12 more)
 
 ### Community 73 - "key_match"
-Cohesion: 0.14
-Nodes (13): key_match(), RenameBranchPopup, Event, Frame, Option, Rect, RepoPathRef, Result (+5 more)
+Cohesion: 0.15
+Nodes (12): RenameBranchPopup, Event, Frame, Option, Rect, RepoPathRef, Result, Self (+4 more)
 
 ### Community 74 - "RenameRemotePopup"
 Cohesion: 0.15
@@ -538,16 +547,16 @@ Cohesion: 0.18
 Nodes (14): Error, GixError, Box, Error, From, Self, String, T (+6 more)
 
 ### Community 77 - "diff.rs"
-Cohesion: 0.21
-Nodes (19): FileDiff, get_diff(), get_diff_commit(), get_diff_commits(), Hunk, new_file_content(), raw_diff_to_file_diff(), Diff (+11 more)
+Cohesion: 0.19
+Nodes (22): DiffOptions, FileDiff, get_diff(), get_diff_commit(), get_diff_commits(), get_diff_raw(), Hunk, new_file_content() (+14 more)
 
 ### Community 78 - "KeyConfig"
-Cohesion: 0.05
-Nodes (55): ClapApp, Q, app(), CliArgs, get_app_cache_path(), get_app_config_path(), process_cmdline(), Option (+47 more)
+Cohesion: 0.15
+Nodes (14): Q, create_symlink(), KeyConfig, Error, KeyCode, KeyModifiers, Option, P (+6 more)
 
 ### Community 79 - "FuzzyFindPopup"
-Cohesion: 0.13
-Nodes (14): FuzzyFinderTarget, FuzzyFindPopup, Event, Frame, Option, Rect, Result, Self (+6 more)
+Cohesion: 0.16
+Nodes (12): FuzzyFinderTarget, FuzzyFindPopup, Event, Frame, Option, Rect, Result, Self (+4 more)
 
 ### Community 80 - "AsyncCommitFiles"
 Cohesion: 0.19
@@ -575,7 +584,7 @@ Nodes (11): Event, Frame, Option, Rect, RepoPathRef, Result, Self, SharedKeyConf
 
 ### Community 86 - "Various Package Managers"
 Cohesion: 0.14
-Nodes (14): [Anaconda](https://anaconda.org/conda-forge/gitui), [Arch Linux](https://archlinux.org/packages/extra/x86_64/gitui/), [Chocolatey](https://chocolatey.org/packages/gitui) (Windows), Fedora, Gentoo, Homebrew (macOS), [MacPorts (macOS)](https://ports.macports.org/port/gitui/details/), [Mise](https://github.com/jdx/mise) (+6 more)
+Nodes (14): [Anaconda](https://anaconda.org/conda-forge/rusted-git), [Arch Linux](https://archlinux.org/packages/extra/x86_64/rusted-git/), [Chocolatey](https://chocolatey.org/packages/rusted-git) (Windows), Fedora, Gentoo, Homebrew (macOS), [MacPorts (macOS)](https://ports.macports.org/port/rusted-git/details/), [Mise](https://github.com/jdx/mise) (+6 more)
 
 ### Community 87 - "AsyncSingleJob"
 Cohesion: 0.15
@@ -598,8 +607,8 @@ Cohesion: 0.20
 Nodes (7): AsyncSingleJob<J>, Option, P, Result, T, RunParams<T, P>, J
 
 ### Community 92 - "get_status"
-Cohesion: 0.26
-Nodes (11): get_statuses(), discard_status(), get_status(), is_workdir_clean(), Option, Result, Vec, StatusShow (+3 more)
+Cohesion: 0.17
+Nodes (15): AsyncTags, AsyncTagsJob, JobState, Arc, Duration, Instant, Mutex, Notification (+7 more)
 
 ### Community 93 - "MsgPopup"
 Cohesion: 0.19
@@ -618,32 +627,32 @@ Cohesion: 0.33
 Nodes (6): CommitDetails, CommitMessage, CommitSignature, Option, String, WrappedCommitMessage
 
 ### Community 97 - "Gitui"
-Cohesion: 0.22
-Nodes (11): Gitui, gitui_starts(), B, Error, Instant, KeyCode, KeyModifiers, Receiver (+3 more)
+Cohesion: 0.19
+Nodes (16): test_diff_delta_size(), test_diff_delta_size_commit(), LogWalkerWithoutFilter, LogWalkerWithoutFilter<'a>, Result, test_limit(), test_logwalker(), test_logwalker_with_filter() (+8 more)
 
 ### Community 98 - "Queue"
 Cohesion: 0.11
 Nodes (18): PopupStack, Option, Vec, Action, AppTabs, InternalEvent, Queue, ResetItem (+10 more)
 
 ### Community 99 - "LogEntry"
-Cohesion: 0.23
-Nodes (5): BoxStr, LogEntry, DateTime, From, Local
+Cohesion: 0.13
+Nodes (12): BoxStr, Iter, emojifi_string(), String, LogEntry, DateTime, From, IndexSet (+4 more)
 
 ### Community 100 - "Themes"
-Cohesion: 0.20
-Nodes (7): Nightlies, Configuration, Customizing line breaks, Customizing selection, Preset Themes, Syntax Highlighting, Themes
+Cohesion: 0.33
+Nodes (6): Configuration, Customizing line breaks, Customizing selection, Preset Themes, Syntax Highlighting, Themes
 
 ### Community 101 - "DrawableComponent"
-Cohesion: 0.16
-Nodes (11): DrawableComponent, GotoLinePopup, Event, Frame, Rect, Result, Self, SharedKeyConfig (+3 more)
+Cohesion: 0.18
+Nodes (10): GotoLinePopup, Event, Frame, Rect, Result, Self, SharedKeyConfig, SharedTheme (+2 more)
 
 ### Community 102 - "mod.rs"
-Cohesion: 0.21
-Nodes (13): centered_rect(), centered_rect_absolute(), common_nav(), rect_inside(), From, MoveSelection, Option, Rect (+5 more)
+Cohesion: 0.29
+Nodes (9): centered_rect(), centered_rect_absolute(), rect_inside(), From, Rect, Self, Size, test_small_rect_in_rect() (+1 more)
 
 ### Community 103 - "AsyncRemoteTagsJob"
 Cohesion: 0.21
-Nodes (11): AsyncRemoteTagsJob, JobState, Arc, Mutex, Notification, Option, Progress, Result (+3 more)
+Nodes (11): B, Error, Instant, KeyCode, KeyModifiers, Receiver, Result, Self (+3 more)
 
 ### Community 104 - "get_commit_files"
 Cohesion: 0.27
@@ -654,40 +663,40 @@ Cohesion: 0.21
 Nodes (6): DateTime, Line, Local, Option, String, Tags
 
 ### Community 106 - "draw_scrollbar"
-Cohesion: 0.25
-Nodes (10): draw_scrollbar(), Orientation, Buffer, Frame, Rect, Self, SharedTheme, Style (+2 more)
+Cohesion: 0.08
+Nodes (21): HorizontalScrollType, calc_scroll_right(), HorizontalScroll, Cell, Frame, Rect, Self, SharedTheme (+13 more)
 
 ### Community 107 - "AsyncBranchesJob"
 Cohesion: 0.20
 Nodes (10): AsyncBranchesJob, JobState, Arc, Mutex, Notification, Option, Progress, Result (+2 more)
 
 ### Community 108 - "DiffLinePosition"
-Cohesion: 0.21
+Cohesion: 0.23
 Nodes (9): DiffLine, DiffLinePosition, DiffLineType, HunkHeader, Box, From, PartialEq, Self (+1 more)
 
 ### Community 109 - "DiffOptions"
-Cohesion: 0.29
-Nodes (12): DiffOptions, get_diff_raw(), Default, Repository, find_hunk_index(), reset_hunk(), reset_untracked_file_which_will_not_find_hunk(), Diff (+4 more)
+Cohesion: 0.44
+Nodes (8): find_hunk_index(), reset_hunk(), reset_untracked_file_which_will_not_find_hunk(), Diff, Option, Result, stage_hunk(), unstage_hunk()
 
 ### Community 110 - "add_to_ignore"
 Cohesion: 0.29
 Nodes (13): add_to_ignore(), file_ends_with_newline(), read_lines(), P, Path, Result, test_append(), test_append_no_newline_at_end() (+5 more)
 
 ### Community 112 - ".init"
-Cohesion: 0.36
-Nodes (5): PathBuf, Result, Self, test_smoke(), ThemePatch
+Cohesion: 0.14
+Nodes (14): Alignment, get_line_offset(), Block, Buffer, Option, Rect, Self, Style (+6 more)
 
 ### Community 113 - "HorizontalScroll"
-Cohesion: 0.20
-Nodes (5): HorizontalScrollType, calc_scroll_right(), HorizontalScroll, Cell, Self
+Cohesion: 0.14
+Nodes (10): OsStr, DrawableComponent, ExternalEditorPopup, Event, Frame, Rect, Result, Self (+2 more)
 
 ### Community 114 - "apply_selection"
 Cohesion: 0.31
 Nodes (7): add_old_line_at_end_is_noop(), apply_selection(), catchup_to_hunkstart_past_end_does_not_panic(), NewFromOldContent, Result, String, Vec
 
 ### Community 115 - "FAQ.md"
-Cohesion: 0.22
-Nodes (6): 1. <a name="credentials"></a> "Bad Credentials" Error <small><sup>[Top ▲](#table-of-contents)</sup></small>, 2. <a name="keybindings"></a> Custom key bindings <small><sup>[Top ▲](#table-of-contents)</sup></small>, 3. <a name="watcher"></a> Watching for changes <small><sup>[Top ▲](#table-of-contents)</sup></small>, <a name="table-of-contents"></a> Table of Contents, Key Config, Key Symbols
+Cohesion: 0.17
+Nodes (7): 1. <a name="credentials"></a> "Bad Credentials" Error <small><sup>[Top ▲](#table-of-contents)</sup></small>, 2. <a name="keybindings"></a> Custom key bindings <small><sup>[Top ▲](#table-of-contents)</sup></small>, 3. <a name="watcher"></a> Watching for changes <small><sup>[Top ▲](#table-of-contents)</sup></small>, <a name="table-of-contents"></a> Table of Contents, Key Config, Key Symbols, Nightlies
 
 ### Community 116 - "[0.25.0] - 2024-02-21"
 Cohesion: 0.29
@@ -702,8 +711,8 @@ Cohesion: 0.23
 Nodes (9): AsyncFetchJob, JobState, Arc, Mutex, Notification, Option, Progress, Result (+1 more)
 
 ### Community 119 - "ShowUntrackedFilesConfig"
-Cohesion: 0.21
-Nodes (9): ShowUntrackedFilesConfig, gix::status::UntrackedFiles, From, Self, Status, StatusItemType, ChangeRef, Delta (+1 more)
+Cohesion: 0.29
+Nodes (9): From, Self, Status, StatusItemType, StatusShow, StatusType, ChangeRef, Delta (+1 more)
 
 ### Community 120 - ".forwarder"
 Cohesion: 0.27
@@ -734,8 +743,8 @@ Cohesion: 0.40
 Nodes (9): get_file_diff_patch(), get_patches(), HunkLines, patch_get_hunklines(), Diff, Repository, Result, Vec (+1 more)
 
 ### Community 127 - "commitlist.rs"
-Cohesion: 0.31
-Nodes (7): build_commit_list_with_some_commits(), build_marked_from_indices(), Event, test_copy_commit_none_marked(), test_copy_commit_one_marked(), test_copy_commit_random_marked(), test_copy_commit_range_marked()
+Cohesion: 0.36
+Nodes (6): build_commit_list_with_some_commits(), build_marked_from_indices(), test_copy_commit_none_marked(), test_copy_commit_one_marked(), test_copy_commit_random_marked(), test_copy_commit_range_marked()
 
 ### Community 128 - "[0.26.3] - 2024-06-02"
 Cohesion: 0.40
@@ -743,7 +752,7 @@ Nodes (5): [0.26.3] - 2024-06-02, Added, Breaking Changes, Fixes, Theme file for
 
 ### Community 130 - "Contributing"
 Cohesion: 0.40
-Nodes (4): Building GitUI, Contributing, Getting help, Getting started
+Nodes (4): Building rusted-git, Contributing, Getting help, Getting started
 
 ### Community 131 - "7. <a name="build"></a> Build <small><sup>[Top ▲](#table-of-contents)</sup></small>"
 Cohesion: 0.40
@@ -758,12 +767,12 @@ Cohesion: 0.43
 Nodes (3): NotifiableMutex<T>, Self, T
 
 ### Community 134 - "blame_file"
-Cohesion: 0.67
-Nodes (4): blame_file(), Option, Result, test_blame()
+Cohesion: 0.31
+Nodes (10): blame_file(), BlameHunk, FileBlame, fixup_windows_path(), Option, Result, String, Vec (+2 more)
 
 ### Community 135 - "write_commit_file"
-Cohesion: 0.29
-Nodes (18): write_commit_file(), discard_lines(), Result, test_discard(), test_discard2(), test_discard3(), test_discard4(), test_discard5() (+10 more)
+Cohesion: 0.27
+Nodes (19): write_commit_file(), discard_lines(), Result, test_discard(), test_discard2(), test_discard3(), test_discard4(), test_discard5() (+11 more)
 
 ### Community 136 - "[0.11.0] - 2021-12-20"
 Cohesion: 0.50
@@ -787,15 +796,15 @@ Nodes (3): Error, PathBuf, TryFromIntError
 
 ### Community 142 - "[0.13.0] - 2021-03-15 - Happy Birthday GitUI 🥳"
 Cohesion: 0.50
-Nodes (4): [0.13.0] - 2021-03-15 - Happy Birthday GitUI 🥳, Added, Changed, Fixed
+Nodes (4): [0.13.0] - 2021-03-15 - Happy Birthday rusted-git 🥳, Added, Changed, Fixed
 
 ### Community 143 - ".draw"
-Cohesion: 0.50
-Nodes (3): Frame, Rect, SharedTheme
+Cohesion: 0.20
+Nodes (7): IntoIter, IntoIterator, &'a ItemBatch, ItemBatch, Option, Rc, Vec
 
 ### Community 144 - ".draw"
-Cohesion: 0.50
-Nodes (3): Frame, Rect, SharedTheme
+Cohesion: 0.28
+Nodes (8): KeySymbols, KeySymbolsFile, Default, Option, PathBuf, Result, Self, String
 
 ### Community 149 - "[0.14.0] - 2021-04-11"
 Cohesion: 0.50
@@ -882,12 +891,12 @@ Cohesion: 0.50
 Nodes (4): Added, Changed, Fixes, Unreleased
 
 ### Community 170 - ".new"
-Cohesion: 0.50
-Nodes (3): Option, PathBuf, Self
+Cohesion: 0.36
+Nodes (11): ClapApp, app(), CliArgs, get_app_cache_path(), get_app_config_path(), process_cmdline(), Option, PathBuf (+3 more)
 
 ### Community 171 - "[0.10.0] - 2020-08-29"
-Cohesion: 0.67
-Nodes (3): [0.10.0] - 2020-08-29, Added, Fixed
+Cohesion: 0.26
+Nodes (4): DateTime, Local, Row, Vec
 
 ### Community 172 - "[0.17.0] - 2021-08-21"
 Cohesion: 0.67
@@ -921,19 +930,35 @@ Nodes (3): [0.26.2] - 2024-04-17, Added, Fixes
 Cohesion: 0.67
 Nodes (3): [0.28.1] - 2026-03-21, Changed, Fixed
 
+### Community 190 - "clipboard.rs"
+Cohesion: 0.49
+Nodes (10): copy_string(), copy_string_osc52(), copy_string_wayland(), copy_string_x(), exec_copy(), exec_copy_with_args(), is_wsl(), Result (+2 more)
+
+### Community 191 - "FileRevOpen"
+Cohesion: 0.20
+Nodes (6): FileRevOpen, Event, Option, Self, Sender, String
+
+### Community 192 - "ProgressPercent"
+Cohesion: 0.36
+Nodes (5): ProgressPercent, Self, test_progress_rounding(), test_progress_zero_all(), test_progress_zero_total()
+
+### Community 198 - "[0.16.2] - 2021-07-10"
+Cohesion: 0.67
+Nodes (3): [0.16.2] - 2021-07-10, Added, Fixed
+
 ## Knowledge Gaps
 - **176 isolated node(s):** `ScopeTimeLog<'a>`, `Direction`, `WordWrapper<'a, 'b>`, `Added`, `Changed` (+171 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **11 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `CommitId` connect `CommitId` to `ScrollType`, `strings.rs`, `BlameFilePopup`, `mod.rs`, `blame_file`, `write_commit_file`, `RefGraph`, `Revlog`, `SubmodulesListPopup`, `TagListPopup`, `mod.rs`, `StatusTreeComponent`, `FileRevlogPopup`, `StashList`, `TextInputComponent`, `BranchListPopup`, `CommitPopup`, `ResetPopup`, `logwalker.rs`, `stash.rs`, `tree.rs`, `LogSearchPopupPopup`, `DetailsComponent`, `RepoPath`, `AsyncGitNotification`, `CommitList`, `EventState`, `stage_add_file`, `debug_cmd_print`, `utils.rs`, `CompareCommitsPopup`, `AsyncDiff`, `CompareDetailsComponent`, `RevisionFilesPopup`, `rebase.rs`, `RunParams`, `diff.rs`, `AsyncCommitFiles`, `get_commit_details`, `Queue`, `LogEntry`, `get_commit_files`, `.get_entry_to_add`, `reword`, `commitlist.rs`?**
-  _High betweenness centrality (0.182) - this node is a cross-community bridge._
-- **Why does `RepoPath` connect `RepoPath` to `BlameFilePopup`, `mod.rs`, `PushPopup`, `blame_file`, `RefGraph`, `write_commit_file`, `Status`, `SubmodulesListPopup`, `TagListPopup`, `PushTagsPopup`, `mod.rs`, `StashList`, `App`, `ResetPopup`, `stash.rs`, `tree.rs`, `CommitId`, `AsyncGitNotification`, `repo`, `hooks.rs`, `PullPopup`, `stage_add_file`, `CheckoutOptionPopup`, `debug_cmd_print`, `utils.rs`, `BasicAuthCredential`, `AsyncDiff`, `main.rs`, `AsyncStatus`, `AsyncCreatePrJob`, `rebase.rs`, `RunParams`, `diff.rs`, `KeyConfig`, `AsyncCommitFiles`, `get_commit_details`, `get_config_string`, `get_status`, `AsyncRemoteTagsJob`, `get_commit_files`, `AsyncBranchesJob`, `DiffOptions`, `add_to_ignore`, `AsyncFetchJob`, `reword`?**
-  _High betweenness centrality (0.168) - this node is a cross-community bridge._
-- **Why does `FileTree` connect `RevisionFilesComponent` to `.update`?**
+- **Why does `CommitId` connect `CommitId` to `ScrollType`, `strings.rs`, `BlameFilePopup`, `mod.rs`, `blame_file`, `write_commit_file`, `RefGraph`, `Revlog`, `SubmodulesListPopup`, `TagListPopup`, `.draw`, `mod.rs`, `StatusTreeComponent`, `StashList`, `TextInputComponent`, `BranchListPopup`, `CommitPopup`, `ResetPopup`, `logwalker.rs`, `stash.rs`, `tree.rs`, `LogSearchPopupPopup`, `DetailsComponent`, `RepoPath`, `AsyncGitNotification`, `CommitList`, `[0.10.0] - 2020-08-29`, `EventState`, `stage_add_file`, `debug_cmd_print`, `utils.rs`, `CompareCommitsPopup`, `AsyncDiff`, `CompareDetailsComponent`, `FilesTab`, `rebase.rs`, `RunParams`, `diff.rs`, `AsyncCommitFiles`, `get_commit_details`, `Gitui`, `Queue`, `LogEntry`, `get_commit_files`, `.get_entry_to_add`, `reword`, `commitlist.rs`?**
+  _High betweenness centrality (0.200) - this node is a cross-community bridge._
+- **Why does `RepoPath` connect `RepoPath` to `mod.rs`, `PushPopup`, `blame_file`, `RefGraph`, `write_commit_file`, `Status`, `SubmodulesListPopup`, `TagListPopup`, `PushTagsPopup`, `mod.rs`, `StashList`, `CommitPopup`, `ResetPopup`, `stash.rs`, `tree.rs`, `CommitId`, `AsyncGitNotification`, `repo`, `hooks.rs`, `PullPopup`, `.new`, `stage_add_file`, `CheckoutOptionPopup`, `debug_cmd_print`, `utils.rs`, `BasicAuthCredential`, `AsyncDiff`, `main.rs`, `FilesTab`, `AsyncStatus`, `AsyncCreatePrJob`, `rebase.rs`, `RunParams`, `diff.rs`, `AsyncCommitFiles`, `get_commit_details`, `get_config_string`, `get_status`, `Gitui`, `get_commit_files`, `AsyncBranchesJob`, `DiffOptions`, `add_to_ignore`, `AsyncFetchJob`, `reword`?**
+  _High betweenness centrality (0.171) - this node is a cross-community bridge._
+- **Why does `FileTree` connect `RevisionFilesComponent` to `.update`, `RevisionFilesPopup`, `tree.rs`?**
   _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Are the 114 inferred relationships involving `repo()` (e.g. with `.fetch()` and `.fetch_helper_with_filter()`) actually correct?**
   _`repo()` has 114 INFERRED edges - model-reasoned connections that need verification._
