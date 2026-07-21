@@ -205,7 +205,7 @@ impl CreatePrTab {
 				self.title.set_text(format!("Merge {name}"));
 			}
 			self.status = format!(
-				"Head set to `{name}`. Tab to edit PR Title, then Description."
+				"Head set to `{name}`. Edit title, then Esc back and Tab for next tab."
 			);
 			self.focus = Focus::Title;
 			self.apply_focus();
@@ -218,7 +218,7 @@ impl CreatePrTab {
 		{
 			self.base_branch = name.clone();
 			self.status = format!(
-				"Base set to `{name}`. Enter sets head, then Tab to PR Title."
+				"Base set to `{name}`. Enter sets head; Right edits title."
 			);
 		}
 	}
@@ -372,7 +372,7 @@ impl CreatePrTab {
 		f.render_widget(summary, chunks[0]);
 
 		let help = Paragraph::new(Line::from(Span::styled(
-			"Enter=set head  |  b=set base  |  Tab=next field  |  Esc=back  |  c=create PR",
+			"Enter=set head  |  b=set base  |  Right/Tab=edit  |  Esc=branches  |  Tab(on branches)=next tab  |  c=create",
 			self.theme.text(false, false),
 		)));
 		f.render_widget(help, chunks[1]);
@@ -513,10 +513,11 @@ impl Component for CreatePrTab {
 			return Ok(EventState::NotConsumed);
 		}
 
-		// Handle navigation keys before embedded text inputs.
-		// TextInputComponent treats Esc as "close popup" (hides itself)
-		// and Tab as insert-tab — both break this tab's UX.
-		// Esc: title/body → branch list; branch list → leave PR tab.
+		// Handle navigation before embedded text inputs (Esc/Tab would
+		// otherwise hide inputs or insert a tab character).
+		// Esc: title/body → branch list (tab menu). Stay there — do not
+		// jump to Status. From Branches, Tab bubbles to the app to cycle
+		// main tabs (wrapping to the first when past the last).
 		if let Event::Key(k) = ev {
 			if key_match(k, self.key_config.keys.exit_popup) {
 				if self.focus != Focus::Branches {
@@ -524,15 +525,22 @@ impl Component for CreatePrTab {
 					self.apply_focus();
 					return Ok(EventState::Consumed);
 				}
-				self.queue.push(InternalEvent::TabSwitchStatus);
-				return Ok(EventState::Consumed);
+				// Already on the tab menu (branch list) — leave Esc alone.
+				return Ok(EventState::NotConsumed);
 			}
 			if key_match(k, self.key_config.keys.tab_toggle) {
+				if self.focus == Focus::Branches {
+					// Let App::toggle_tabs move to the next main tab.
+					return Ok(EventState::NotConsumed);
+				}
 				self.cycle_focus(false);
 				return Ok(EventState::Consumed);
 			}
 			if key_match(k, self.key_config.keys.tab_toggle_reverse)
 			{
+				if self.focus == Focus::Branches {
+					return Ok(EventState::NotConsumed);
+				}
 				self.cycle_focus(true);
 				return Ok(EventState::Consumed);
 			}

@@ -2006,9 +2006,9 @@ pub mod commands {
 		CommandText::new(
 			format!(
 				"Focus [{}]",
-				key_config.get_hint(key_config.keys.tab_toggle),
+				key_config.get_hint(key_config.keys.move_right),
 			),
-			"cycle focus between branches and form",
+			"edit PR title/description (from branches)",
 			CMD_GROUP_GENERAL,
 		)
 	}
@@ -2018,10 +2018,10 @@ pub mod commands {
 	) -> CommandText {
 		CommandText::new(
 			format!(
-				"Back [{}]",
+				"Branches [{}]",
 				key_config.get_hint(key_config.keys.exit_popup),
 			),
-			"leave form focus, or leave PR tab",
+			"back to branch list; Tab then cycles main tabs",
 			CMD_GROUP_GENERAL,
 		)
 	}
