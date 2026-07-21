@@ -8,11 +8,13 @@ ui:
 - [`Stashing`]: Managing one stash
 - [`StashList`]: Managing all stashes
 - [`RefGraph`]: SourceTree-style branch/tag commit graph
+- [`CreatePrTab`]: Create a GitHub pull request from a branch
 
 Many of the tabs can expand to show more details. This is done via
 Enter or right-arrow. To close again, press ESC.
 */
 
+mod create_pr;
 mod files;
 mod refgraph;
 mod revlog;
@@ -20,6 +22,7 @@ mod stashing;
 mod stashlist;
 mod status;
 
+pub use create_pr::CreatePrTab;
 pub use files::FilesTab;
 pub use refgraph::RefGraph;
 pub use revlog::Revlog;

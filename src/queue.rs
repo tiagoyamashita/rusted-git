@@ -81,6 +81,7 @@ pub enum AppTabs {
 	Stashing,
 	Stashlist,
 	Graph,
+	CreatePr,
 }
 
 ///

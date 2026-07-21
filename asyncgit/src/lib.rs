@@ -48,6 +48,7 @@ mod blame;
 mod branches;
 pub mod cached;
 mod commit_files;
+mod create_pr;
 mod diff;
 mod error;
 mod fetch_job;
@@ -68,6 +69,7 @@ pub use crate::{
 	blame::{AsyncBlame, BlameParams},
 	branches::AsyncBranchesJob,
 	commit_files::{AsyncCommitFiles, CommitFilesParams},
+	create_pr::{AsyncCreatePrJob, CreatePrRequest},
 	diff::{AsyncDiff, DiffParams, DiffType},
 	error::{Error, Result},
 	fetch_job::AsyncFetchJob,
@@ -128,6 +130,8 @@ pub enum AsyncGitNotification {
 	TreeFiles,
 	///
 	CommitFilter,
+	///
+	CreatePr,
 }
 
 /// helper function to calculate the hash of an arbitrary type that implements the `Hash` trait

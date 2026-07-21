@@ -97,6 +97,12 @@ pub fn tab_graph(key_config: &SharedKeyConfig) -> String {
 		key_config.get_hint(key_config.keys.tab_graph)
 	)
 }
+pub fn tab_create_pr(key_config: &SharedKeyConfig) -> String {
+	format!(
+		"PR [{}]",
+		key_config.get_hint(key_config.keys.tab_create_pr)
+	)
+}
 pub fn tab_divider(_key_config: &SharedKeyConfig) -> String {
 	" | ".to_string()
 }
@@ -336,6 +342,12 @@ pub fn stashlist_title(_key_config: &SharedKeyConfig) -> String {
 }
 pub fn graph_title(_key_config: &SharedKeyConfig) -> String {
 	"Graph".to_string()
+}
+pub fn create_pr_title_input() -> String {
+	"Title".to_string()
+}
+pub fn create_pr_body_input() -> String {
+	"Body".to_string()
 }
 pub fn help_title(_key_config: &SharedKeyConfig) -> String {
 	"Help: all commands".to_string()
@@ -586,13 +598,14 @@ pub mod commands {
 	) -> CommandText {
 		CommandText::new(
 			format!(
-				"Tab [{}{}{}{}{}{}]",
+				"Tab [{}{}{}{}{}{}{}]",
 				key_config.get_hint(key_config.keys.tab_status),
 				key_config.get_hint(key_config.keys.tab_log),
 				key_config.get_hint(key_config.keys.tab_files),
 				key_config.get_hint(key_config.keys.tab_stashing),
 				key_config.get_hint(key_config.keys.tab_stashes),
 				key_config.get_hint(key_config.keys.tab_graph),
+				key_config.get_hint(key_config.keys.tab_create_pr),
 			),
 			"switch top level tabs directly",
 			CMD_GROUP_GENERAL,
@@ -1947,6 +1960,55 @@ pub mod commands {
 				key_config.get_hint(key_config.keys.enter),
 			),
 			"Go to the given line",
+			CMD_GROUP_GENERAL,
+		)
+	}
+
+	pub fn create_pr_set_head(
+		key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			format!(
+				"Set Head [{}]",
+				key_config.get_hint(key_config.keys.enter),
+			),
+			"use selected branch as PR head",
+			CMD_GROUP_BRANCHES,
+		)
+	}
+
+	pub fn create_pr_set_base(
+		_key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			"Set Base [b]".to_string(),
+			"use selected branch as PR base",
+			CMD_GROUP_BRANCHES,
+		)
+	}
+
+	pub fn create_pr_submit(
+		key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			format!(
+				"Create PR [{}]",
+				key_config.get_hint(key_config.keys.open_commit),
+			),
+			"create pull request with gh",
+			CMD_GROUP_BRANCHES,
+		)
+	}
+
+	pub fn create_pr_focus(
+		key_config: &SharedKeyConfig,
+	) -> CommandText {
+		CommandText::new(
+			format!(
+				"Focus [{}]",
+				key_config.get_hint(key_config.keys.tab_toggle),
+			),
+			"cycle focus between branches and form",
 			CMD_GROUP_GENERAL,
 		)
 	}

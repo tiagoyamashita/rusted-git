@@ -28,7 +28,10 @@ use crate::{
 	},
 	setup_popups,
 	strings::{self, ellipsis_trim_start, order},
-	tabs::{FilesTab, RefGraph, Revlog, StashList, Stashing, Status},
+	tabs::{
+		CreatePrTab, FilesTab, RefGraph, Revlog, StashList, Stashing,
+		Status,
+	},
 	try_or_popup,
 	ui::style::{SharedTheme, Theme},
 	AsyncAppNotification, AsyncNotification,
@@ -107,6 +110,7 @@ pub struct App {
 	stashing_tab: Stashing,
 	stashlist_tab: StashList,
 	graph_tab: RefGraph,
+	create_pr_tab: CreatePrTab,
 	files_tab: FilesTab,
 	queue: Queue,
 	theme: SharedTheme,
@@ -236,6 +240,7 @@ impl App {
 			stashing_tab: Stashing::new(&env),
 			stashlist_tab: StashList::new(&env),
 			graph_tab: RefGraph::new(&env),
+			create_pr_tab: CreatePrTab::new(&env),
 			files_tab: FilesTab::new(&env, select_file),
 			checkout_option_popup: CheckoutOptionPopup::new(&env),
 			goto_line_popup: GotoLinePopup::new(&env),
@@ -296,6 +301,7 @@ impl App {
 				3 => self.stashing_tab.draw(f, chunks_main[1])?,
 				4 => self.stashlist_tab.draw(f, chunks_main[1])?,
 				5 => self.graph_tab.draw(f, chunks_main[1])?,
+				6 => self.create_pr_tab.draw(f, chunks_main[1])?,
 				_ => bail!("unknown tab"),
 			}
 		}
@@ -348,6 +354,12 @@ impl App {
 				) || key_match(
 					k,
 					self.key_config.keys.tab_stashes,
+				) || key_match(
+					k,
+					self.key_config.keys.tab_graph,
+				) || key_match(
+					k,
+					self.key_config.keys.tab_create_pr,
 				) {
 					self.switch_tab(k)?;
 					NeedsUpdate::COMMANDS
@@ -413,6 +425,7 @@ impl App {
 		self.stashing_tab.update()?;
 		self.stashlist_tab.update()?;
 		self.graph_tab.update()?;
+		self.create_pr_tab.update()?;
 		self.reset_popup.update()?;
 
 		self.update_commands();
@@ -431,6 +444,7 @@ impl App {
 			self.status_tab.update_git(ev)?;
 			self.stashing_tab.update_git(ev)?;
 			self.revlog.update_git(ev)?;
+			self.create_pr_tab.update_git(ev)?;
 			self.file_revlog_popup.update_git(ev)?;
 			self.inspect_commit_popup.update_git(ev)?;
 			self.compare_commits_popup.update_git(ev)?;
@@ -535,7 +549,8 @@ impl App {
 			files_tab,
 			stashing_tab,
 			stashlist_tab,
-			graph_tab
+			graph_tab,
+			create_pr_tab
 		]
 	);
 
@@ -607,6 +622,7 @@ impl App {
 			&mut self.stashing_tab,
 			&mut self.stashlist_tab,
 			&mut self.graph_tab,
+			&mut self.create_pr_tab,
 		]
 	}
 
@@ -634,6 +650,8 @@ impl App {
 			self.switch_to_tab(&AppTabs::Stashlist)?;
 		} else if key_match(k, self.key_config.keys.tab_graph) {
 			self.switch_to_tab(&AppTabs::Graph)?;
+		} else if key_match(k, self.key_config.keys.tab_create_pr) {
+			self.switch_to_tab(&AppTabs::CreatePr)?;
 		}
 
 		Ok(())
@@ -663,6 +681,7 @@ impl App {
 			AppTabs::Stashing => self.set_tab(3)?,
 			AppTabs::Stashlist => self.set_tab(4)?,
 			AppTabs::Graph => self.set_tab(5)?,
+			AppTabs::CreatePr => self.set_tab(6)?,
 		}
 		Ok(())
 	}
@@ -1183,6 +1202,7 @@ impl App {
 			Span::raw(strings::tab_stashing(&self.key_config)),
 			Span::raw(strings::tab_stashes(&self.key_config)),
 			Span::raw(strings::tab_graph(&self.key_config)),
+			Span::raw(strings::tab_create_pr(&self.key_config)),
 		];
 		let divider = strings::tab_divider(&self.key_config);
 
