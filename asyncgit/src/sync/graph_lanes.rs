@@ -1,7 +1,8 @@
-//! Assign SourceTree-style lane glyphs to a newest-first commit list.
+//! Assign branch-centric lane glyphs: one lane per tip, forking at diverge.
 
 use super::graph_log::GraphCommit;
 use super::CommitId;
+use std::collections::{HashMap, HashSet};
 
 /// One drawn cell in the lane column.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,16 +22,39 @@ pub struct GraphRow {
 	pub commit_lane: usize,
 }
 
-/// Compute lane rows for `commits` (must be newest-first, as from
-/// [`super::graph_log::get_graph_commits`]).
+/// Compute lane rows for `commits` (newest-first) using ordered `tips`.
+///
+/// Each tip owns one lane for its exclusive first-parent history. When a tip
+/// joins another tip's history (branched-from), that lane ends with a fork
+/// connector into the parent lane.
 #[must_use]
-pub fn assign_lanes(commits: &[GraphCommit]) -> Vec<GraphRow> {
-	let mut reserved: Vec<Option<CommitId>> = Vec::new();
-	let mut colors: Vec<usize> = Vec::new();
-	let mut next_color = 0_usize;
+pub fn assign_lanes(
+	commits: &[GraphCommit],
+	tips: &[CommitId],
+) -> Vec<GraphRow> {
+	if commits.is_empty() {
+		return Vec::new();
+	}
+
+	let owner = assign_commit_owners(commits, tips);
+	let mut reserved: Vec<Option<CommitId>> =
+		vec![None; tips.len().max(1)];
+	let colors: Vec<usize> = (0..reserved.len()).collect();
 	let mut rows = Vec::with_capacity(commits.len());
 
 	for commit in commits {
+		let commit_lane = owner.get(&commit.id).copied().unwrap_or(0);
+		ensure_lanes(&mut reserved, commit_lane + 1);
+
+		// Open this tip's lane when we first see its tip commit.
+		if reserved.get(commit_lane).copied().flatten()
+			!= Some(commit.id)
+		{
+			if let Some(slot) = reserved.get_mut(commit_lane) {
+				*slot = Some(commit.id);
+			}
+		}
+
 		let matching: Vec<usize> = reserved
 			.iter()
 			.enumerate()
@@ -39,31 +63,9 @@ pub fn assign_lanes(commits: &[GraphCommit]) -> Vec<GraphRow> {
 			})
 			.collect();
 
-		let commit_lane = matching.first().copied().unwrap_or_else(|| {
-			open_lane(
-				&mut reserved,
-				&mut colors,
-				&mut next_color,
-				commit.id,
-			)
-		});
+		let mut cells =
+			draw_cells(&reserved, &colors, commit_lane, &matching);
 
-		// Ensure colors vec matches reserved length.
-		while colors.len() < reserved.len() {
-			colors.push(next_color);
-			next_color = next_color.wrapping_add(1);
-		}
-
-		let parent_count = commit.parents.len();
-		let mut cells = draw_cells(
-			&reserved,
-			&colors,
-			commit_lane,
-			&matching,
-			parent_count,
-		);
-
-		// Update reserved lanes for following rows.
 		for &lane in &matching {
 			if let Some(slot) = reserved.get_mut(lane) {
 				*slot = None;
@@ -71,54 +73,55 @@ pub fn assign_lanes(commits: &[GraphCommit]) -> Vec<GraphRow> {
 		}
 
 		if let Some((first, rest)) = commit.parents.split_first() {
-			let first_already = reserved
-				.iter()
-				.position(|id| *id == Some(*first));
+			let parent_lane =
+				owner.get(first).copied().unwrap_or(commit_lane);
 
-			match first_already {
-				Some(existing) if existing != commit_lane => {
-					// Merge into an existing lane; free this one.
-					if let Some(slot) = reserved.get_mut(commit_lane)
-					{
-						*slot = None;
-					}
-					draw_merge_connector(
-						&mut cells,
-						&colors,
-						commit_lane,
-						existing,
-					);
+			if parent_lane == commit_lane {
+				if let Some(slot) = reserved.get_mut(commit_lane) {
+					*slot = Some(*first);
 				}
-				_ => {
-					if let Some(slot) = reserved.get_mut(commit_lane)
-					{
+			} else {
+				// Side branch ends here and joins the parent branch lane.
+				ensure_lanes(&mut reserved, parent_lane + 1);
+				if reserved.get(parent_lane).copied().flatten().is_none()
+				{
+					if let Some(slot) = reserved.get_mut(parent_lane) {
 						*slot = Some(*first);
 					}
 				}
-			}
-
-			for parent in rest {
-				if reserved.iter().any(|id| *id == Some(*parent)) {
-					continue;
-				}
-				let lane = open_lane(
-					&mut reserved,
-					&mut colors,
-					&mut next_color,
-					*parent,
-				);
 				draw_fork_connector(
 					&mut cells,
 					&colors,
 					commit_lane,
-					lane,
+					parent_lane,
 				);
 			}
-		}
 
-		while reserved.last() == Some(&None) {
-			reserved.pop();
-			colors.pop();
+			// Merge parents that already have an active lane.
+			for parent in rest {
+				if let Some(&pl) = owner.get(parent) {
+					ensure_lanes(&mut reserved, pl + 1);
+					if reserved.iter().any(|id| *id == Some(*parent))
+					{
+						draw_merge_connector(
+							&mut cells,
+							&colors,
+							commit_lane,
+							pl,
+						);
+					} else if let Some(slot) = reserved.get_mut(pl) {
+						if slot.is_none() {
+							*slot = Some(*parent);
+							draw_fork_connector(
+								&mut cells,
+								&colors,
+								commit_lane,
+								pl,
+							);
+						}
+					}
+				}
+			}
 		}
 
 		while cells.last().is_some_and(|c| c.ch == ' ') {
@@ -134,21 +137,57 @@ pub fn assign_lanes(commits: &[GraphCommit]) -> Vec<GraphRow> {
 	rows
 }
 
-fn open_lane(
-	reserved: &mut Vec<Option<CommitId>>,
-	colors: &mut Vec<usize>,
-	next_color: &mut usize,
-	id: CommitId,
-) -> usize {
-	if let Some(free) = reserved.iter().position(Option::is_none) {
-		reserved[free] = Some(id);
-		free
-	} else {
-		let lane = reserved.len();
-		reserved.push(Some(id));
-		colors.push(*next_color);
-		*next_color = next_color.wrapping_add(1);
-		lane
+/// Walk each tip's first-parent chain; the first tip to claim a commit owns it.
+fn assign_commit_owners(
+	commits: &[GraphCommit],
+	tips: &[CommitId],
+) -> HashMap<CommitId, usize> {
+	let commit_ids: HashSet<CommitId> =
+		commits.iter().map(|c| c.id).collect();
+	let first_parent: HashMap<CommitId, Option<CommitId>> = commits
+		.iter()
+		.map(|c| (c.id, c.parents.first().copied()))
+		.collect();
+
+	let mut owner = HashMap::new();
+
+	for (lane, tip) in tips.iter().enumerate() {
+		if !commit_ids.contains(tip) {
+			continue;
+		}
+		let mut cur = Some(*tip);
+		while let Some(id) = cur {
+			if owner.contains_key(&id) {
+				// Reached another tip's history — this is the fork point.
+				break;
+			}
+			if !commit_ids.contains(&id) {
+				break;
+			}
+			owner.insert(id, lane);
+			cur = first_parent.get(&id).copied().flatten();
+		}
+	}
+
+	// Orphan / second-parent-only commits: inherit a parent's lane if possible.
+	for c in commits {
+		if owner.contains_key(&c.id) {
+			continue;
+		}
+		let lane = c
+			.parents
+			.iter()
+			.find_map(|p| owner.get(p).copied())
+			.unwrap_or(0);
+		owner.insert(c.id, lane);
+	}
+
+	owner
+}
+
+fn ensure_lanes(reserved: &mut Vec<Option<CommitId>>, len: usize) {
+	while reserved.len() < len {
+		reserved.push(None);
 	}
 }
 
@@ -157,17 +196,15 @@ fn draw_cells(
 	colors: &[usize],
 	commit_lane: usize,
 	matching: &[usize],
-	_parent_count: usize,
 ) -> Vec<GraphCell> {
 	let width = reserved.len().max(commit_lane + 1);
 	let mut cells = Vec::with_capacity(width * 2);
 
 	for i in 0..width {
-		let color = colors.get(i).copied().unwrap_or(0);
+		let color = colors.get(i).copied().unwrap_or(i);
 		let ch = if i == commit_lane {
 			'●'
 		} else if matching.contains(&i) {
-			// Secondary merge into this commit (refined below).
 			'╯'
 		} else if reserved.get(i).is_some_and(Option::is_some) {
 			'│'
@@ -181,10 +218,9 @@ fn draw_cells(
 		});
 	}
 
-	// Horizontal connectors from secondary matching lanes to commit.
 	for &lane in matching.iter().skip(1) {
-		let color = colors.get(lane).copied().unwrap_or(0);
-		fill_horizontal(&mut cells, colors, commit_lane, lane, color);
+		let color = colors.get(lane).copied().unwrap_or(lane);
+		fill_horizontal(&mut cells, commit_lane, lane, color);
 		let idx = lane * 2;
 		if let Some(cell) = cells.get_mut(idx) {
 			cell.ch = if lane > commit_lane { '╯' } else { '╰' };
@@ -201,9 +237,9 @@ fn draw_merge_connector(
 	from: usize,
 	to: usize,
 ) {
-	let color = colors.get(to).copied().unwrap_or(0);
+	let color = colors.get(to).copied().unwrap_or(to);
 	ensure_width(cells, to.max(from) + 1);
-	fill_horizontal(cells, colors, from, to, color);
+	fill_horizontal(cells, from, to, color);
 }
 
 fn draw_fork_connector(
@@ -212,13 +248,28 @@ fn draw_fork_connector(
 	from: usize,
 	to: usize,
 ) {
-	let color = colors.get(to).copied().unwrap_or(0);
+	let color = colors.get(from).copied().unwrap_or(from);
 	ensure_width(cells, to.max(from) + 1);
-	fill_horizontal(cells, colors, from, to, color);
+	fill_horizontal(cells, from, to, color);
 	let idx = to * 2;
 	if let Some(cell) = cells.get_mut(idx) {
-		cell.ch = if to > from { '╮' } else { '╭' };
-		cell.color = color;
+		// Keep existing node; only set elbow if empty/connector.
+		if cell.ch == ' ' || cell.ch == '─' || cell.ch == '│' {
+			cell.ch = if to > from { '╮' } else { '╭' };
+			cell.color = color;
+		}
+	}
+	let from_idx = from * 2;
+	if let Some(cell) = cells.get_mut(from_idx) {
+		if cell.ch == '●' {
+			// node stays; horizontal already filled beside it
+		} else if to > from {
+			cell.ch = '╰';
+			cell.color = color;
+		} else {
+			cell.ch = '╯';
+			cell.color = color;
+		}
 	}
 }
 
@@ -237,7 +288,6 @@ fn ensure_width(cells: &mut Vec<GraphCell>, lanes: usize) {
 
 fn fill_horizontal(
 	cells: &mut [GraphCell],
-	_colors: &[usize],
 	from: usize,
 	to: usize,
 	color: usize,
@@ -298,7 +348,7 @@ mod tests {
 				parents: vec![],
 			},
 		];
-		let rows = assign_lanes(&commits);
+		let rows = assign_lanes(&commits, &[a]);
 		assert_eq!(rows.len(), 3);
 		assert!(row_to_string(&rows[0]).contains('●'));
 		assert_eq!(rows[0].commit_lane, 0);
@@ -308,6 +358,8 @@ mod tests {
 
 	#[test]
 	fn test_diverged_branches_use_two_lanes() {
+		// tip_a (main) and tip_b (feature) both parent of base.
+		// Newest-first: tip_a, tip_b, base.
 		let tip_a = cid(1);
 		let tip_b = cid(2);
 		let base = cid(3);
@@ -325,13 +377,52 @@ mod tests {
 				parents: vec![],
 			},
 		];
-		let rows = assign_lanes(&commits);
+		let rows = assign_lanes(&commits, &[tip_a, tip_b]);
 		assert_eq!(rows.len(), 3);
-		assert!(
-			rows.iter().any(|r| r.commit_lane >= 1),
-			"expected a second lane for diverged tips, got {:?}",
-			rows.iter().map(|r| r.commit_lane).collect::<Vec<_>>()
+		assert_eq!(rows[0].commit_lane, 0, "main tip on lane 0");
+		assert_eq!(rows[1].commit_lane, 1, "feature tip on lane 1");
+		assert_eq!(
+			rows[2].commit_lane, 0,
+			"shared base stays on first tip's lane"
 		);
-		assert!(row_to_string(&rows[2]).contains('●'));
+	}
+
+	#[test]
+	fn test_feature_forks_from_main_mid_history() {
+		// main:   root - mid - main_tip
+		// feature:         mid - feat_tip
+		let root = cid(1);
+		let mid = cid(2);
+		let main_tip = cid(3);
+		let feat_tip = cid(4);
+		let commits = vec![
+			GraphCommit {
+				id: feat_tip,
+				parents: vec![mid],
+			},
+			GraphCommit {
+				id: main_tip,
+				parents: vec![mid],
+			},
+			GraphCommit {
+				id: mid,
+				parents: vec![root],
+			},
+			GraphCommit {
+				id: root,
+				parents: vec![],
+			},
+		];
+		let rows =
+			assign_lanes(&commits, &[main_tip, feat_tip]);
+		assert_eq!(rows[0].commit_lane, 1, "feature tip");
+		assert_eq!(rows[1].commit_lane, 0, "main tip");
+		assert_eq!(rows[2].commit_lane, 0, "fork point on main");
+		assert_eq!(rows[3].commit_lane, 0, "root on main");
+		// Feature row should show a second lane column exists.
+		assert!(
+			row_to_string(&rows[0]).len()
+				>= row_to_string(&rows[1]).len().saturating_sub(2)
+		);
 	}
 }

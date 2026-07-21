@@ -64,7 +64,7 @@ impl RefGraph {
 		}
 
 		let graph = get_graph_commits(&repo, GRAPH_LIMIT)?;
-		let lanes = assign_lanes(&graph);
+		let lanes = assign_lanes(&graph, &tips);
 
 		let mut graph_rows = BTreeMap::new();
 		for (commit, row) in graph.iter().zip(lanes.into_iter()) {

@@ -43,34 +43,47 @@ impl Ord for TimeOrderedCommit<'_> {
 }
 
 /// Collect tip commit ids from HEAD, local/remote branches, and tags.
+///
+/// Order matters for lane assignment: earlier tips keep the left lanes.
+/// HEAD first, then local branches, remotes, then tags. Duplicate tip
+/// commits are kept only once (first occurrence wins).
 pub fn get_graph_tips(repo_path: &RepoPath) -> Result<Vec<CommitId>> {
 	scope_time!("get_graph_tips");
 
-	let mut tips = HashSet::new();
+	let mut tips = Vec::new();
+	let mut seen = HashSet::new();
+
+	let mut push_tip = |id: CommitId| {
+		if seen.insert(id) {
+			tips.push(id);
+		}
+	};
 
 	if let Ok(head) = super::utils::get_head(repo_path) {
-		tips.insert(head);
+		push_tip(head);
 	}
 
 	if let Ok(local) = get_branches_info(repo_path, true) {
 		for b in local {
-			tips.insert(b.top_commit);
+			push_tip(b.top_commit);
 		}
 	}
 
 	if let Ok(remote) = get_branches_info(repo_path, false) {
 		for b in remote {
-			tips.insert(b.top_commit);
+			push_tip(b.top_commit);
 		}
 	}
 
 	if let Ok(tags) = get_tags(repo_path) {
-		for id in tags.keys() {
-			tips.insert(*id);
+		let mut tag_ids: Vec<_> = tags.keys().copied().collect();
+		tag_ids.sort_unstable();
+		for id in tag_ids {
+			push_tip(id);
 		}
 	}
 
-	Ok(tips.into_iter().collect())
+	Ok(tips)
 }
 
 /// Walk the commit graph from all tips, newest first, up to `limit`.
@@ -162,7 +175,8 @@ impl<'a> GraphLogWalker<'a> {
 mod tests {
 	use super::*;
 	use crate::sync::{
-		create_branch, stage_add_file, tests::repo_init_empty, commit,
+		commit, create_branch, stage_add_file,
+		tests::repo_init_empty,
 	};
 	use pretty_assertions::assert_eq;
 	use std::{fs::File, io::Write, path::Path};
@@ -182,12 +196,8 @@ mod tests {
 		stage_add_file(repo_path, file_path).unwrap();
 		let c1 = commit(repo_path, "base").unwrap();
 
-		let main_ref = repo
-			.head()
-			.unwrap()
-			.name()
-			.unwrap()
-			.to_string();
+		let main_ref =
+			repo.head().unwrap().name().unwrap().to_string();
 
 		create_branch(repo_path, "feature").unwrap();
 		File::create(root.join(file_path))
