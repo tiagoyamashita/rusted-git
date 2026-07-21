@@ -73,7 +73,9 @@ pub use hooks::{
 	PrePushTarget, PrepareCommitMsgSource,
 };
 pub use graph_lanes::{assign_lanes, GraphCell, GraphRow};
-pub use graph_log::{get_graph_commits, get_graph_tips, GraphCommit};
+pub use graph_log::{
+	get_graph_commits, get_graph_lane_tips, get_graph_tips, GraphCommit,
+};
 pub use hunks::{reset_hunk, stage_hunk, unstage_hunk};
 pub use ignore::add_to_ignore;
 pub use logwalker::{LogWalker, LogWalkerWithoutFilter};

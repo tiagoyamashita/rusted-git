@@ -1,4 +1,7 @@
-//! SourceTree-style compact lanes: branch lines run until they rejoin the parent.
+//! Compact SourceTree-style lanes: branch lines run until they rejoin the parent.
+//!
+//! Columns are allocated dynamically and reused after a join, so width tracks
+//! peak concurrent branches instead of total tip count.
 
 use super::graph_log::GraphCommit;
 use super::CommitId;
@@ -16,17 +19,18 @@ pub struct GraphCell {
 /// Lane glyphs for a single commit row.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GraphRow {
-	/// Cells left-to-right (fixed width = tip count).
+	/// Cells left-to-right (width = peak concurrent lanes so far, trimmed later).
 	pub cells: Vec<GraphCell>,
 	/// Lane index of this commit's node.
 	pub commit_lane: usize,
 }
 
-/// Compute SourceTree-style lanes for `commits` (newest-first).
+/// Compute compact lanes for `commits` (newest-first).
 ///
-/// Each tip keeps a fixed column. A side-branch line stays in its column
-/// (`│`) until it reaches the commit it branched from on the original
-/// lane — that row shows the join (`╯`/`╰`) into the parent. HEAD is `*`.
+/// Each active branch keeps a column (`│`) until it reaches the commit it
+/// branched from — that row shows the join (`╯`/`╰`) into the parent. Freed
+/// columns are reused. HEAD is `*`. `tips` only biases ownership/color (earlier
+/// tips preferred); they do not reserve permanent columns.
 #[must_use]
 pub fn assign_lanes(
 	commits: &[GraphCommit],
@@ -37,22 +41,13 @@ pub fn assign_lanes(
 		return Vec::new();
 	}
 
-	let width = tips.len().max(1);
 	let owner = assign_commit_owners(commits, tips);
-	let mut reserved: Vec<Option<CommitId>> = vec![None; width];
+	let mut reserved: Vec<Option<CommitId>> = Vec::new();
+	let mut lane_color: Vec<usize> = Vec::new();
 	let mut rows = Vec::with_capacity(commits.len());
 
 	for commit in commits {
-		let commit_lane = owner
-			.get(&commit.id)
-			.copied()
-			.unwrap_or(0)
-			.min(width - 1);
-
-		// Open this tip's column when its tip first appears.
-		if reserved[commit_lane] != Some(commit.id) {
-			reserved[commit_lane] = Some(commit.id);
-		}
+		let tip_color = owner.get(&commit.id).copied().unwrap_or(0);
 
 		let matching: Vec<usize> = reserved
 			.iter()
@@ -62,9 +57,26 @@ pub fn assign_lanes(
 			})
 			.collect();
 
+		let commit_lane = if matching.is_empty() {
+			let lane = open_lane(&mut reserved, &mut lane_color, tip_color);
+			reserved[lane] = Some(commit.id);
+			lane
+		} else {
+			// Prefer the leftmost matching lane; bias toward this tip's color.
+			matching
+				.iter()
+				.copied()
+				.min_by_key(|&lane| {
+					let color_mismatch =
+						usize::from(lane_color.get(lane).copied() != Some(tip_color));
+					(color_mismatch, lane)
+				})
+				.unwrap_or(0)
+		};
+
 		let is_head = head == Some(commit.id);
 		let mut cells =
-			draw_row(&reserved, commit_lane, &matching, is_head, width);
+			draw_row(&reserved, &lane_color, commit_lane, &matching, is_head);
 
 		// Lanes that meet here join into the commit's column.
 		for &lane in &matching {
@@ -79,38 +91,49 @@ pub fn assign_lanes(
 		// later reach that parent (SourceTree: line emerges from original).
 		if let Some((first, rest)) = commit.parents.split_first() {
 			reserved[commit_lane] = Some(*first);
+			lane_color[commit_lane] = tip_color;
 
 			for parent in rest {
-				// Merge commits: keep other parents alive on their lanes.
-				if let Some(&pl) = owner.get(parent) {
-					let pl = pl.min(width - 1);
-					if reserved[pl].is_none() {
-						reserved[pl] = Some(*parent);
-						draw_join(&mut cells, pl, commit_lane);
-					}
-				} else {
-					// Unknown parent lane: reuse a free column if any.
-					if let Some(free) =
-						reserved.iter().position(Option::is_none)
-					{
-						reserved[free] = Some(*parent);
-						draw_join(&mut cells, free, commit_lane);
-					}
+				if let Some(existing) = reserved
+					.iter()
+					.position(|id| *id == Some(*parent))
+				{
+					ensure_cells_width(
+						&mut cells,
+						reserved.len(),
+						&lane_color,
+					);
+					draw_join(&mut cells, existing, commit_lane);
+					continue;
 				}
+				let parent_color =
+					owner.get(parent).copied().unwrap_or(tip_color);
+				let pl = open_lane(
+					&mut reserved,
+					&mut lane_color,
+					parent_color,
+				);
+				reserved[pl] = Some(*parent);
+				ensure_cells_width(
+					&mut cells,
+					reserved.len(),
+					&lane_color,
+				);
+				draw_join(&mut cells, pl, commit_lane);
 			}
 		}
 
-		pad_to_width(&mut cells, width);
 		rows.push(GraphRow {
 			cells,
 			commit_lane,
 		});
 	}
 
+	normalize_row_widths(&mut rows);
 	rows
 }
 
-/// First tip to claim a commit via first-parent history owns that column.
+/// First tip to claim a commit via first-parent history owns that color index.
 fn assign_commit_owners(
 	commits: &[GraphCommit],
 	tips: &[CommitId],
@@ -156,13 +179,28 @@ fn assign_commit_owners(
 	owner
 }
 
+fn open_lane(
+	reserved: &mut Vec<Option<CommitId>>,
+	lane_color: &mut Vec<usize>,
+	color: usize,
+) -> usize {
+	if let Some(i) = reserved.iter().position(Option::is_none) {
+		lane_color[i] = color;
+		return i;
+	}
+	reserved.push(None);
+	lane_color.push(color);
+	reserved.len() - 1
+}
+
 fn draw_row(
 	reserved: &[Option<CommitId>],
+	lane_color: &[usize],
 	commit_lane: usize,
 	matching: &[usize],
 	is_head: bool,
-	width: usize,
 ) -> Vec<GraphCell> {
+	let width = reserved.len().max(commit_lane + 1);
 	let mut cells = Vec::with_capacity(width);
 
 	for i in 0..width {
@@ -180,10 +218,27 @@ fn draw_row(
 		} else {
 			' '
 		};
-		cells.push(GraphCell { ch, color: i });
+		cells.push(GraphCell {
+			ch,
+			color: lane_color.get(i).copied().unwrap_or(i),
+		});
 	}
 
 	cells
+}
+
+fn ensure_cells_width(
+	cells: &mut Vec<GraphCell>,
+	width: usize,
+	lane_color: &[usize],
+) {
+	while cells.len() < width {
+		let i = cells.len();
+		cells.push(GraphCell {
+			ch: ' ',
+			color: lane_color.get(i).copied().unwrap_or(i),
+		});
+	}
 }
 
 /// Draw a one-char join from `from` into `to` (the original / target lane).
@@ -214,15 +269,28 @@ fn draw_join(cells: &mut [GraphCell], from: usize, to: usize) {
 	}
 }
 
-fn pad_to_width(cells: &mut Vec<GraphCell>, width: usize) {
-	while cells.len() < width {
-		cells.push(GraphCell {
-			ch: ' ',
-			color: 0,
-		});
-	}
-	if cells.len() > width {
-		cells.truncate(width);
+/// Pad every row to the same width (peak used columns) so the hash column aligns.
+fn normalize_row_widths(rows: &mut [GraphRow]) {
+	let max_w = rows
+		.iter()
+		.map(|r| {
+			r.cells
+				.iter()
+				.rposition(|c| c.ch != ' ')
+				.map_or(0, |i| i + 1)
+		})
+		.max()
+		.unwrap_or(0)
+		.max(1);
+
+	for row in rows {
+		while row.cells.len() < max_w {
+			row.cells.push(GraphCell {
+				ch: ' ',
+				color: 0,
+			});
+		}
+		row.cells.truncate(max_w);
 	}
 }
 
@@ -273,11 +341,11 @@ mod tests {
 	fn test_side_branch_line_runs_until_parent() {
 		// main: root - mid - main_tip(HEAD)
 		// feature:       mid - feat_tip
-		// Newest-first graph should keep feature's │ beside main until mid:
-		//   ●   feat
-		//  *│   main HEAD
-		//  ●╯   mid  (feature merges into original)
-		//  ●    root
+		// Newest-first: feature opens leftmost, main opens beside it.
+		//   ●│  or ●   feat
+		//   │*       main HEAD
+		//   ●╯       mid  (feature joins)
+		//   ●        root
 		let root = cid(1);
 		let mid = cid(2);
 		let main_tip = cid(3);
@@ -306,20 +374,37 @@ mod tests {
 			Some(main_tip),
 		);
 
-		assert_eq!(row_to_string(&rows[0]), " ●", "feat tip");
 		assert_eq!(
-			row_to_string(&rows[1]),
-			"*│",
-			"main tip with feature line still running"
+			row_to_string(&rows[0]).chars().filter(|&c| c != ' ').count(),
+			1,
+			"feat tip is a single node: {}",
+			row_to_string(&rows[0])
+		);
+		assert!(
+			row_to_string(&rows[1]).contains('*'),
+			"main tip is HEAD: {}",
+			row_to_string(&rows[1])
+		);
+		assert!(
+			row_to_string(&rows[1]).contains('│'),
+			"feature line still running beside main: {}",
+			row_to_string(&rows[1])
 		);
 		let mid_row = row_to_string(&rows[2]);
-		assert_eq!(mid_row.chars().nth(0), Some('●'));
 		assert!(
-			mid_row.chars().nth(1) == Some('╯')
-				|| mid_row.chars().nth(1) == Some('╰'),
+			mid_row.contains('●')
+				&& (mid_row.contains('╯') || mid_row.contains('╰')),
 			"feature joins original at mid, got {mid_row}"
 		);
-		assert_eq!(row_to_string(&rows[3]), "● ");
+		assert_eq!(
+			row_to_string(&rows[3]).chars().filter(|&c| c != ' ').count(),
+			1
+		);
+		// Never wider than peak concurrent (2).
+		assert!(
+			rows.iter().all(|r| r.cells.len() <= 2),
+			"graph wider than 2 lanes"
+		);
 	}
 
 	#[test]
@@ -343,13 +428,48 @@ mod tests {
 		];
 		let rows =
 			assign_lanes(&commits, &[tip_a, tip_b], Some(tip_a));
-		assert_eq!(row_to_string(&rows[0]), "* ");
-		assert_eq!(row_to_string(&rows[1]), "│●");
+		assert!(row_to_string(&rows[0]).contains('*'));
+		assert!(row_to_string(&rows[1]).contains('●'));
+		assert!(row_to_string(&rows[1]).contains('│'));
 		let base_row = row_to_string(&rows[2]);
-		assert_eq!(base_row.chars().nth(0), Some('●'));
 		assert!(
-			matches!(base_row.chars().nth(1), Some('╯' | '╰')),
+			base_row.contains('●')
+				&& matches!(
+					base_row.chars().find(|&c| c == '╯' || c == '╰'),
+					Some(_)
+				),
 			"got {base_row}"
 		);
+		assert!(rows.iter().all(|r| r.cells.len() <= 2));
+	}
+
+	#[test]
+	fn test_many_tips_reuse_lanes_not_tip_count() {
+		// Five tips that all share one base — peak concurrent is 5 at the tips,
+		// but we must not pad to a larger artificial width, and after joins
+		// history collapses.
+		let base = cid(1);
+		let tips: Vec<_> = (2..=6).map(cid).collect();
+		let mut commits: Vec<_> = tips
+			.iter()
+			.rev()
+			.map(|&id| GraphCommit {
+				id,
+				parents: vec![base],
+			})
+			.collect();
+		commits.push(GraphCommit {
+			id: base,
+			parents: vec![],
+		});
+
+		let rows = assign_lanes(&commits, &tips, Some(tips[0]));
+		assert!(
+			rows.iter().all(|r| r.cells.len() <= tips.len()),
+			"width {} exceeds tip count",
+			rows[0].cells.len()
+		);
+		// Peak concurrent = number of tips before they join.
+		assert_eq!(rows[0].cells.len(), tips.len());
 	}
 }

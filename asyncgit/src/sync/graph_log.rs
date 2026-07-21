@@ -44,12 +44,33 @@ impl Ord for TimeOrderedCommit<'_> {
 
 /// Collect tip commit ids from HEAD, local/remote branches, and tags.
 ///
-/// Order matters for lane assignment: earlier tips keep the left lanes.
-/// HEAD first, then local branches, remotes, then tags. Duplicate tip
-/// commits are kept only once (first occurrence wins).
+/// Used to walk the full graph. Duplicate tip commits are kept only once
+/// (first occurrence wins): HEAD, locals, remotes, then tags.
 pub fn get_graph_tips(repo_path: &RepoPath) -> Result<Vec<CommitId>> {
 	scope_time!("get_graph_tips");
+	collect_tips(repo_path, TipSet::All)
+}
 
+/// Tips used for lane ownership/color: HEAD and local branches only.
+///
+/// Remotes and tags still appear in the walk via [`get_graph_tips`], but they
+/// do not each reserve a lane column (that made the graph very wide).
+pub fn get_graph_lane_tips(
+	repo_path: &RepoPath,
+) -> Result<Vec<CommitId>> {
+	scope_time!("get_graph_lane_tips");
+	collect_tips(repo_path, TipSet::Local)
+}
+
+enum TipSet {
+	All,
+	Local,
+}
+
+fn collect_tips(
+	repo_path: &RepoPath,
+	set: TipSet,
+) -> Result<Vec<CommitId>> {
 	let mut tips = Vec::new();
 	let mut seen = HashSet::new();
 
@@ -69,17 +90,19 @@ pub fn get_graph_tips(repo_path: &RepoPath) -> Result<Vec<CommitId>> {
 		}
 	}
 
-	if let Ok(remote) = get_branches_info(repo_path, false) {
-		for b in remote {
-			push_tip(b.top_commit);
+	if matches!(set, TipSet::All) {
+		if let Ok(remote) = get_branches_info(repo_path, false) {
+			for b in remote {
+				push_tip(b.top_commit);
+			}
 		}
-	}
 
-	if let Ok(tags) = get_tags(repo_path) {
-		let mut tag_ids: Vec<_> = tags.keys().copied().collect();
-		tag_ids.sort_unstable();
-		for id in tag_ids {
-			push_tip(id);
+		if let Ok(tags) = get_tags(repo_path) {
+			let mut tag_ids: Vec<_> = tags.keys().copied().collect();
+			tag_ids.sort_unstable();
+			for id in tag_ids {
+				push_tip(id);
+			}
 		}
 	}
 
