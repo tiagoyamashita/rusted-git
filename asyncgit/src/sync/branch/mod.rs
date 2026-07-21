@@ -91,6 +91,8 @@ pub struct BranchInfo {
 	pub top_commit_message: String,
 	///
 	pub top_commit: CommitId,
+	/// Primary branch used to determine merge status.
+	pub merge_target: Option<String>,
 	/// Primary branch (`main` or `master`) containing this branch's tip.
 	pub merged_into: Option<String>,
 	///
@@ -131,16 +133,6 @@ pub fn get_branches_info(
 	scope_time!("get_branches_info");
 
 	let repo = repo(repo_path)?;
-	let primary_tip = if local {
-		["main", "master"].into_iter().find_map(|name| {
-			repo.find_branch(name, BranchType::Local)
-				.ok()
-				.and_then(|branch| branch.get().target())
-				.map(|id| (name, id))
-		})
-	} else {
-		None
-	};
 
 	let (filter, remotes_with_tracking) = if local {
 		(BranchType::Local, HashSet::default())
@@ -180,6 +172,13 @@ pub fn get_branches_info(
 			let name_bytes = branch.name_bytes()?;
 			let name = bytes2string(name_bytes)?;
 			let top_commit_id = top_commit.id();
+			let primary_tip =
+				primary_tip_for_branch(&repo, &name, local);
+			let merge_target =
+				primary_tip.as_ref().and_then(|(primary_name, _)| {
+					(name != *primary_name)
+						.then(|| primary_name.clone())
+				});
 			let merged_into = primary_tip.and_then(
 				|(primary_name, primary_tip)| {
 					(name != primary_name
@@ -190,7 +189,7 @@ pub fn get_branches_info(
 									top_commit_id,
 								)
 								.unwrap_or(false)))
-					.then(|| primary_name.to_string())
+					.then_some(primary_name)
 				},
 			);
 
@@ -222,6 +221,7 @@ pub fn get_branches_info(
 					top_commit.summary_bytes().unwrap_or_default(),
 				)?,
 				top_commit: top_commit_id.into(),
+				merge_target,
 				merged_into,
 				details,
 			})
@@ -232,6 +232,32 @@ pub fn get_branches_info(
 	branches_for_display.sort_by(|a, b| a.name.cmp(&b.name));
 
 	Ok(branches_for_display)
+}
+
+fn primary_tip_for_branch(
+	repo: &Repository,
+	branch_name: &str,
+	local: bool,
+) -> Option<(String, git2::Oid)> {
+	let branch_type = if local {
+		BranchType::Local
+	} else {
+		BranchType::Remote
+	};
+	let remote = (!local)
+		.then(|| branch_name.split_once('/').map(|(name, _)| name))
+		.flatten();
+
+	["main", "master"].into_iter().find_map(|primary| {
+		let name = remote.map_or_else(
+			|| primary.to_string(),
+			|remote| format!("{remote}/{primary}"),
+		);
+		repo.find_branch(&name, branch_type)
+			.ok()
+			.and_then(|branch| branch.get().target())
+			.map(|id| (name, id))
+	})
 }
 
 ///
@@ -632,8 +658,11 @@ mod tests_branches {
 			.find(|branch| branch.name == "master")
 			.unwrap();
 
+		assert_eq!(merged.merge_target.as_deref(), Some("master"));
 		assert_eq!(merged.merged_into.as_deref(), Some("master"));
+		assert_eq!(unmerged.merge_target.as_deref(), Some("master"));
 		assert_eq!(unmerged.merged_into, None);
+		assert_eq!(master.merge_target, None);
 		assert_eq!(master.merged_into, None);
 	}
 
@@ -1017,6 +1046,12 @@ mod test_remote_branches {
 		assert_eq!(&branches[0].name, "origin/HEAD");
 		assert_eq!(&branches[1].name, "origin/foo");
 		assert_eq!(&branches[2].name, "origin/master");
+		assert_eq!(
+			branches[1].merge_target.as_deref(),
+			Some("origin/master")
+		);
+		assert_eq!(branches[1].merged_into, None);
+		assert_eq!(branches[2].merge_target, None);
 	}
 
 	#[test]
