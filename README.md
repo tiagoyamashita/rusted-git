@@ -235,6 +235,23 @@ see [NIGHTLIES.md](./NIGHTLIES.md)
 
 - To run the complete test suite python is required (and it must be invocable as `python`)
 
+### Run with hot reload
+
+Install [`cargo-watch`](https://crates.io/crates/cargo-watch) once:
+
+```sh
+cargo install cargo-watch
+```
+
+Then run the application from the repository root:
+
+```sh
+cargo watch -x run
+```
+
+When a Rust source file changes, `cargo-watch` rebuilds and restarts
+`rusted-git`. The application state is reset on each restart.
+
 ### Cargo Install
 
 The simplest way to start playing around with `rusted-git` is to have `cargo` build and install it with `cargo install rusted-git --locked`. If you are not familiar with rust and cargo: [Getting Started with Rust](https://doc.rust-lang.org/book/ch01-00-getting-started.html)

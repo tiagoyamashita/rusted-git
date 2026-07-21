@@ -638,9 +638,21 @@ impl CommitList {
 								}
 								_ => "",
 							};
+							let merged = self
+								.graph_rows
+								.as_ref()
+								.and(
+									local_branch
+										.merged_into
+										.as_deref(),
+								)
+								.map_or_else(
+									String::new,
+									|primary| format!(" → {primary}"),
+								);
 							format!(
-								"{{{head}{0}}}",
-								local_branch.name
+								"{{{head}{0}{merged}}}",
+								local_branch.name,
 							)
 						})
 						.join(" ")
@@ -652,20 +664,22 @@ impl CommitList {
 				None
 			};
 
-			txt.push(self.get_entry_to_add(
-				e,
-				idx + self.scroll_top.get() == selection,
-				tags,
-				local_branches,
-				self.remote_branches_string(e),
-				&self.theme,
-				width,
-				now,
-				marked,
-				self.graph_rows
-					.as_ref()
-					.and_then(|rows| rows.get(&e.id)),
-			));
+			txt.push(
+				self.get_entry_to_add(
+					e,
+					idx + self.scroll_top.get() == selection,
+					tags,
+					local_branches,
+					self.remote_branches_string(e),
+					&self.theme,
+					width,
+					now,
+					marked,
+					self.graph_rows
+						.as_ref()
+						.and_then(|rows| rows.get(&e.id)),
+				),
+			);
 		}
 
 		txt

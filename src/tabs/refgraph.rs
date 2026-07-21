@@ -11,8 +11,8 @@ use crate::{
 };
 use anyhow::Result;
 use asyncgit::sync::{
-	self, assign_lanes, get_graph_commits, get_graph_tips, CommitId,
-	RepoPathRef,
+	self, assign_lanes, get_graph_commits, get_graph_lane_tips,
+	get_graph_tips, CommitId, RepoPathRef,
 };
 use crossterm::event::Event;
 use indexmap::IndexSet;
@@ -65,7 +65,9 @@ impl RefGraph {
 
 		let graph = get_graph_commits(&repo, GRAPH_LIMIT)?;
 		let head = sync::utils::get_head(&repo).ok();
-		let lanes = assign_lanes(&graph, &tips, head);
+		// Locals only for lane ownership — remotes/tags bloated the column.
+		let lane_tips = get_graph_lane_tips(&repo)?;
+		let lanes = assign_lanes(&graph, &lane_tips, head);
 
 		let mut graph_rows = BTreeMap::new();
 		for (commit, row) in graph.iter().zip(lanes.into_iter()) {
