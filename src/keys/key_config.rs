@@ -5,7 +5,7 @@ use std::{fs::canonicalize, path::PathBuf, rc::Rc};
 use crate::{args::get_app_config_path, strings::symbol};
 
 use super::{
-	key_list::{RustedGitKeyEvent, KeysList},
+	key_list::{KeysList, RustedGitKeyEvent},
 	symbols::KeySymbols,
 };
 

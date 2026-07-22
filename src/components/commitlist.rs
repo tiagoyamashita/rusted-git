@@ -18,7 +18,7 @@ use asyncgit::sync::{
 	GraphRow, RepoPathRef, Tags,
 };
 use chrono::{DateTime, Local};
-use crossterm::event::Event;
+use crossterm::event::{Event, MouseButton, MouseEventKind};
 use indexmap::IndexSet;
 use itertools::Itertools;
 use ratatui::{
@@ -57,6 +57,8 @@ pub struct CommitList {
 	graph_rows: Option<BTreeMap<CommitId, GraphRow>>,
 	current_size: Cell<Option<(u16, u16)>>,
 	scroll_top: Cell<usize>,
+	last_area: Cell<Rect>,
+	activate_request: bool,
 	theme: SharedTheme,
 	queue: Queue,
 	key_config: SharedKeyConfig,
@@ -80,6 +82,8 @@ impl CommitList {
 			graph_rows: None,
 			current_size: Cell::new(None),
 			scroll_top: Cell::new(0),
+			last_area: Cell::new(Rect::default()),
+			activate_request: false,
 			theme: env.theme.clone(),
 			queue: env.queue.clone(),
 			key_config: env.key_config.clone(),
@@ -284,6 +288,48 @@ impl CommitList {
 			.map(|highlights| highlights.len())
 			.unwrap_or_default();
 		(self.highlighted_selection.unwrap_or_default(), amount)
+	}
+
+	/// Take a pending second-click activate request (Enter-equivalent).
+	pub fn take_activate_request(&mut self) -> bool {
+		let requested = self.activate_request;
+		self.activate_request = false;
+		requested
+	}
+
+	fn click_at(&mut self, column: u16, row: u16) -> bool {
+		self.activate_request = false;
+
+		let area = self.last_area.get();
+		if column < area.x
+			|| column >= area.x.saturating_add(area.width)
+			|| row <= area.y
+			|| row
+				>= area
+					.y
+					.saturating_add(area.height)
+					.saturating_sub(1)
+		{
+			return false;
+		}
+
+		let visual_row = usize::from(row.saturating_sub(area.y + 1));
+		let relative = self.scroll_top.get() + visual_row;
+		let absolute =
+			relative.saturating_add(self.items.index_offset());
+
+		if absolute >= self.commits.len() {
+			return false;
+		}
+
+		if absolute == self.selection {
+			self.activate_request = true;
+		} else {
+			self.selection = absolute;
+			self.set_highlighted_selection_index();
+		}
+
+		true
 	}
 
 	fn set_highlighted_selection_index(&mut self) {
@@ -835,6 +881,8 @@ impl CommitList {
 
 impl DrawableComponent for CommitList {
 	fn draw(&self, f: &mut Frame, area: Rect) -> Result<()> {
+		self.last_area.set(area);
+
 		let current_size = (
 			area.width.saturating_sub(2),
 			area.height.saturating_sub(2),
@@ -892,7 +940,15 @@ impl DrawableComponent for CommitList {
 
 impl Component for CommitList {
 	fn event(&mut self, ev: &Event) -> Result<EventState> {
+		if let Event::Mouse(mouse) = ev {
+			return Ok((mouse.kind
+				== MouseEventKind::Down(MouseButton::Left)
+				&& self.click_at(mouse.column, mouse.row))
+			.into());
+		}
+
 		if let Event::Key(k) = ev {
+			self.activate_request = false;
 			let selection_changed =
 				if key_match(k, self.key_config.keys.move_up) {
 					self.move_selection(ScrollType::Up)?
@@ -981,6 +1037,8 @@ mod tests {
 				key_config: SharedKeyConfig::default(),
 				scroll_state: (Instant::now(), 0.0),
 				current_size: Cell::default(),
+				last_area: Cell::new(Rect::default()),
+				activate_request: false,
 				graph_rows: None,
 				repo: RepoPathRef::new(sync::RepoPath::Path(
 					std::path::PathBuf::default(),

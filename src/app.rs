@@ -29,8 +29,8 @@ use crate::{
 	setup_popups,
 	strings::{self, ellipsis_trim_start, order},
 	tabs::{
-		CreatePrTab, FilesTab, RefGraph, Revlog, StashList, Stashing,
-		Status,
+		CreatePrTab, FilesTab, GitignoreTab, RefGraph, Revlog,
+		StashList, Stashing, Status,
 	},
 	try_or_popup,
 	ui::style::{SharedTheme, Theme},
@@ -46,7 +46,9 @@ use asyncgit::{
 	AsyncGitNotification, PushType,
 };
 use crossbeam_channel::Sender;
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{
+	Event, KeyEvent, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::{
 	layout::{
 		Alignment, Constraint, Direction, Layout, Margin, Rect,
@@ -61,6 +63,10 @@ use std::{
 	rc::Rc,
 };
 use unicode_width::UnicodeWidthStr;
+
+const TOP_BAR_TEXT_ROW: u16 = 0;
+const TOP_BAR_HORIZONTAL_MARGIN: u16 = 1;
+const TAB_HORIZONTAL_PADDING: u16 = 1;
 
 #[derive(Clone)]
 pub enum QuitState {
@@ -111,6 +117,7 @@ pub struct App {
 	stashlist_tab: StashList,
 	graph_tab: RefGraph,
 	create_pr_tab: CreatePrTab,
+	gitignore_tab: GitignoreTab,
 	files_tab: FilesTab,
 	queue: Queue,
 	theme: SharedTheme,
@@ -241,6 +248,7 @@ impl App {
 			stashlist_tab: StashList::new(&env),
 			graph_tab: RefGraph::new(&env),
 			create_pr_tab: CreatePrTab::new(&env),
+			gitignore_tab: GitignoreTab::new(&env),
 			files_tab: FilesTab::new(&env, select_file),
 			checkout_option_popup: CheckoutOptionPopup::new(&env),
 			goto_line_popup: GotoLinePopup::new(&env),
@@ -302,6 +310,7 @@ impl App {
 				4 => self.stashlist_tab.draw(f, chunks_main[1])?,
 				5 => self.graph_tab.draw(f, chunks_main[1])?,
 				6 => self.create_pr_tab.draw(f, chunks_main[1])?,
+				7 => self.gitignore_tab.draw(f, chunks_main[1])?,
 				_ => bail!("unknown tab"),
 			}
 		}
@@ -360,6 +369,9 @@ impl App {
 				) || key_match(
 					k,
 					self.key_config.keys.tab_create_pr,
+				) || key_match(
+					k,
+					self.key_config.keys.tab_gitignore,
 				) {
 					self.switch_tab(k)?;
 					NeedsUpdate::COMMANDS
@@ -380,6 +392,11 @@ impl App {
 				};
 
 				flags.insert(new_flags);
+			} else if let Event::Mouse(mouse) = &ev {
+				if let Some(tab) = self.clicked_tab(mouse) {
+					self.set_tab(tab)?;
+					flags.insert(NeedsUpdate::COMMANDS);
+				}
 			}
 
 			self.process_queue(flags)?;
@@ -551,7 +568,8 @@ impl App {
 			stashing_tab,
 			stashlist_tab,
 			graph_tab,
-			create_pr_tab
+			create_pr_tab,
+			gitignore_tab
 		]
 	);
 
@@ -624,6 +642,7 @@ impl App {
 			&mut self.stashlist_tab,
 			&mut self.graph_tab,
 			&mut self.create_pr_tab,
+			&mut self.gitignore_tab,
 		]
 	}
 
@@ -653,6 +672,8 @@ impl App {
 			self.switch_to_tab(&AppTabs::Graph)?;
 		} else if key_match(k, self.key_config.keys.tab_create_pr) {
 			self.switch_to_tab(&AppTabs::CreatePr)?;
+		} else if key_match(k, self.key_config.keys.tab_gitignore) {
+			self.switch_to_tab(&AppTabs::Gitignore)?;
 		}
 
 		Ok(())
@@ -683,6 +704,7 @@ impl App {
 			AppTabs::Stashlist => self.set_tab(4)?,
 			AppTabs::Graph => self.set_tab(5)?,
 			AppTabs::CreatePr => self.set_tab(6)?,
+			AppTabs::Gitignore => self.set_tab(7)?,
 		}
 		Ok(())
 	}
@@ -1186,6 +1208,33 @@ impl App {
 	}
 
 	//TODO: make this dynamic
+	fn tab_labels(&self) -> [String; 8] {
+		[
+			strings::tab_status(&self.key_config),
+			strings::tab_log(&self.key_config),
+			strings::tab_files(&self.key_config),
+			strings::tab_stashing(&self.key_config),
+			strings::tab_stashes(&self.key_config),
+			strings::tab_graph(&self.key_config),
+			strings::tab_create_pr(&self.key_config),
+			strings::tab_gitignore(&self.key_config),
+		]
+	}
+
+	fn clicked_tab(&self, mouse: &MouseEvent) -> Option<usize> {
+		if mouse.kind != MouseEventKind::Down(MouseButton::Left)
+			|| mouse.row != TOP_BAR_TEXT_ROW
+		{
+			return None;
+		}
+
+		tab_index_at_column(
+			&self.tab_labels(),
+			strings::tab_divider(&self.key_config).width(),
+			mouse.column,
+		)
+	}
+
 	fn draw_top_bar(&self, f: &mut Frame, r: Rect) {
 		const DIVIDER_PAD_SPACES: usize = 2;
 		const SIDE_PADS: usize = 2;
@@ -1196,15 +1245,7 @@ impl App {
 			horizontal: 1,
 		});
 
-		let tab_labels = [
-			Span::raw(strings::tab_status(&self.key_config)),
-			Span::raw(strings::tab_log(&self.key_config)),
-			Span::raw(strings::tab_files(&self.key_config)),
-			Span::raw(strings::tab_stashing(&self.key_config)),
-			Span::raw(strings::tab_stashes(&self.key_config)),
-			Span::raw(strings::tab_graph(&self.key_config)),
-			Span::raw(strings::tab_create_pr(&self.key_config)),
-		];
+		let tab_labels = self.tab_labels().map(Span::raw);
 		let divider = strings::tab_divider(&self.key_config);
 
 		// heuristic, since tui doesn't provide a way to know
@@ -1256,5 +1297,43 @@ impl App {
 			.alignment(Alignment::Right),
 			text_area,
 		);
+	}
+}
+
+fn tab_index_at_column(
+	labels: &[String],
+	divider_width: usize,
+	column: u16,
+) -> Option<usize> {
+	let mut label_start = usize::from(
+		TOP_BAR_HORIZONTAL_MARGIN + TAB_HORIZONTAL_PADDING,
+	);
+	let column = usize::from(column);
+
+	for (index, label) in labels.iter().enumerate() {
+		let label_end = label_start + label.width();
+		if (label_start..label_end).contains(&column) {
+			return Some(index);
+		}
+		label_start = label_end
+			+ usize::from(TAB_HORIZONTAL_PADDING * 2)
+			+ divider_width;
+	}
+
+	None
+}
+
+#[cfg(test)]
+mod tests {
+	use super::tab_index_at_column;
+
+	#[test]
+	fn selects_tabs_only_when_clicking_their_labels() {
+		let labels = vec!["Status".to_string(), "Log".to_string()];
+
+		assert_eq!(tab_index_at_column(&labels, 3, 2), Some(0));
+		assert_eq!(tab_index_at_column(&labels, 3, 8), None);
+		assert_eq!(tab_index_at_column(&labels, 3, 13), Some(1));
+		assert_eq!(tab_index_at_column(&labels, 3, 16), None);
 	}
 }

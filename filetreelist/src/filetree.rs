@@ -196,6 +196,48 @@ impl FileTree {
 		true
 	}
 
+	/// Select the item currently shown at the given visual row.
+	///
+	/// Returns `true` when `visual_index` maps to a real item (even if it
+	/// was already selected).
+	pub fn select_visual_index(
+		&mut self,
+		visual_index: usize,
+	) -> bool {
+		let Some(absolute) =
+			self.visual_index_to_absolute(visual_index)
+		else {
+			return false;
+		};
+
+		if self.selection != Some(absolute) {
+			self.selection = Some(absolute);
+			self.visual_selection = self.calc_visual_selection();
+		}
+		true
+	}
+
+	/// Toggle folder expand/collapse for the current selection.
+	/// Returns `true` when the selection is a file (caller should open it).
+	pub fn activate_selection(&mut self) -> bool {
+		let Some(selection) = self.selection else {
+			return false;
+		};
+
+		if !self.items.tree_items[selection].kind().is_path() {
+			return true;
+		}
+
+		if self.items.tree_items[selection].kind().is_path_collapsed()
+		{
+			self.items.expand(selection, false);
+		} else {
+			self.items.collapse(selection, false);
+		}
+		self.visual_selection = self.calc_visual_selection();
+		false
+	}
+
 	fn visual_index_to_absolute(
 		&self,
 		visual_index: usize,
